@@ -159,7 +159,7 @@ def main():
         # print "Entered whiled loop"
         if( UAV_state.mode != "OFFBOARD" and
             (rospy.Time.now() - last_request > rospy.Duration(5.0))):
-            if( set_mode(0,'OFFBOARD').success):
+            if( set_mode(0,'OFFBOARD')):
                 print "Offboard enabled"
             last_request = rospy.Time.now()
         else:

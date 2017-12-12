@@ -54,7 +54,7 @@ def is_reached(current, setpoint):
     if (abs(current.x-setpoint.pose.position.x) < 0.5 and
         abs(current.y-setpoint.pose.position.y) < 0.5 and
         abs(current.z-setpoint.pose.position.z) < 0.5):
-        print "Point reached!"
+            print "Point reached!"
         return True
     else:
         return False
