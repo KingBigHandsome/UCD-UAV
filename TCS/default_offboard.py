@@ -152,8 +152,8 @@ def main():
     # enter the main loop
     while(True):
         #rospy.loginfo("The current flight mode is: {};The current arm state is: {}".format(UAV_state.mode,UAV_state.armed))
-        rospy.loginfo("The current flight mode is: {}".format(UAV_state.mode))
-        rospy.loginfo("The current arm state is: {}".format(UAV_state.armed))
+        #rospy.loginfo("The current flight mode is: {}".format(UAV_state.mode))
+        #rospy.loginfo("The current arm state is: {}".format(UAV_state.armed))
         if( UAV_state.mode != "OFFBOARD" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
             if( set_mode(0,'OFFBOARD')):
                 print "Offboard enabled"
