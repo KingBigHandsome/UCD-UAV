@@ -43,6 +43,7 @@ from mavros import setpoint as SP
 import mavros.command
 import mavros_msgs.msg
 import mavros_msgs.srv
+import geometry_msgs
 import sensor_msgs.msg
 import time
 from datetime import datetime
@@ -55,7 +56,7 @@ GPS_TO_METER = 111170    #at 47degree latitude
 m_per_deg_lat = 111006      #at 38.55 latitude
 m_per_deg_lon = 87172  # at 38.55 latitude
 # current position
-current_position = TCS_util.vector3()
+current_local_position = TCS_util.vector3()
 # setpoint message. The type will be changed later in main()
 setpoint_msg = 0
 # setpoint position
@@ -80,24 +81,22 @@ def set_target(pose, x, y, z):
     pose.pose.position.x = x
     pose.pose.position.y = y
     pose.pose.position.z = z
-    pose.header=mavros.setpoint.Header(
-        frame_id="hybrid_pose",
-        stamp=rospy.Time.now())
+    pose.header=mavros.setpoint.Header(frame_id="hybrid_pose",stamp=rospy.Time.now())
 
 def update_msg(msg):
-    msg.header = mavros.setpoint.Header(
-                    frame_id=msg.header.frame_id,
-                    stamp=rospy.Time.now())
+    msg.header = mavros.setpoint.Header(frame_id=msg.header.frame_id,stamp=rospy.Time.now())
 
 def local_position_cb(topic):
-    """local position subscriber callback function
+    """local position subscriber callback function Topic: /mavros/local_position/pose
     """
-    current_position.is_init = True
-    current_position.x = topic.pose.position.x
-    current_position.y = topic.pose.position.y
-    current_position.z = topic.pose.position.z
+    current_local_position.is_init = True
+    current_local_position.x = topic.pose.position.x
+    current_local_position.y = topic.pose.position.y
+    current_local_position.z = topic.pose.position.z
 
 def GPS_position_cb(topic):
+    """Global position subscriber callback function Topic: /mavros/global_position/global
+    """
     current_GPS_position.is_init = True
     current_GPS_position.x = topic.latitude
     current_GPS_position.y = topic.longitude
@@ -111,9 +110,7 @@ def convert_GPS_to_local(GPS_target, GPS_current, local_current, pose, altitude)
     pose.pose.position.x = local_current.x+m_per_deg_lat*(GPS_target.x-GPS_current.x)
     pose.pose.position.y = local_current.y+m_per_deg_lon*(GPS_target.x-GPS_current.x)
     pose.pose.position.z = altitude
-    pose.header=mavros.setpoint.Header(
-        frame_id="hybrid_pose",
-        stamp=rospy.Time.now())
+    pose.header=mavros.setpoint.Header(frame_id="hybrid_pose",stamp=rospy.Time.now())
     # print "Target GPS.x: {}, current GPS.x: {}, difference: {}\n".format(GPS_target.x, GPS_current.x, GPS_target.x-GPS_current.x)
 
 
@@ -123,9 +120,9 @@ def is_reached(setpoint):
     x = setpoint.pose.position.x
     y = setpoint.pose.position.y
     z = setpoint.pose.position.z
-    if (abs(current_position.x-x) < precision and
-            abs(current_position.y-y) < precision and
-            abs(current_position.z-z) < precision):
+    if (abs(current_local_position.x-x) < precision and
+            abs(current_local_position.y-y) < precision and
+            abs(current_local_position.z-z) < precision):
         print "Point reached!"
         return True
     else:
@@ -158,22 +155,24 @@ def main():
     rospy.init_node('TCS_task', anonymous=True)
     rate = rospy.Rate(20)
     mavros.set_namespace('/mavros')
+    
     # setup local pub
-    setpoint_local_pub = mavros.setpoint.get_pub_position_local(queue_size=10)
+    setpoint_local_pub = rospy.Publisher(mavros.get_topic('setpoint_position', 'local'), 
+    									 geometry_msgs.msg.PoseStamped, 
+    									 queue_size=10)
 
     # setup setpoint_msg
-    setpoint_msg = mavros.setpoint.PoseStamped(
-            header=mavros.setpoint.Header(
-                frame_id="hybrid_pose",
-                stamp=rospy.Time.now()),
-            )
+    setpoint_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="hybrid_pose",
+               																 stamp=rospy.Time.now()),)
 
     # setup local sub
     position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
-    	SP.PoseStamped, local_position_cb)
+    									  geometry_msgs.msg.PoseStamped, 
+    									  local_position_cb)
     # setup GPS sub
-    position_GPS_sub = rospy.Subscriber(mavros.get_topic('global_position', 'global'),
-        sensor_msgs.msg.NavSatFix, GPS_position_cb)
+    position_GPS_sub   = rospy.Subscriber(mavros.get_topic('global_position', 'global'),
+        								  sensor_msgs.msg.NavSatFix, 
+        								  GPS_position_cb)
 
     # setup task pub
     task_watchdog = TCS_util.Task_watchdog('TASK_HYBRID_GOTO')
@@ -188,27 +187,21 @@ def main():
     setpoint_GPS_target.z = raw_setpoint_position.z
     over_time = float(setpoint_arg[3])
     print "X: {}, Y: {}, Z: {}".format(raw_setpoint_position.x,
-    	raw_setpoint_position.y, raw_setpoint_position.z)
-
-    # setup setpoint poisiton and prepare to publish the position
-    # set_target(setpoint_msg,
-    # 	setpoint_position.x,
-    # 	setpoint_position.y,
-    # 	setpoint_position.z)
+    								   raw_setpoint_position.y, 
+    								   raw_setpoint_position.z)
 
     pre_flight = 'neutral'
     init_time = rospy.Time.now()
     # In this while loop, do the job.
     # Waiting for receive the first current position
-    while(current_position.is_init is False or current_GPS_position.is_init is False):
+    while(current_local_position.is_init is False or current_GPS_position.is_init is False):
         continue
-    if (raw_setpoint_position.z - current_position.z >2):
+    if (raw_setpoint_position.z - current_local_position.z >2):
         pre_flight = 'ascending'
-        print "Need to ascending"
         # ascending
         set_target(setpoint_msg,
-            current_position.x,
-            current_position.y,
+            current_local_position.x,
+            current_local_position.y,
             raw_setpoint_position.z)
         while(not is_reached(setpoint_msg)):
             update_msg(setpoint_msg)
@@ -218,30 +211,29 @@ def main():
                 break
             rate.sleep()
         # flight to the target
-        convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_position,
-        setpoint_msg,raw_setpoint_position.z)
+        convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_local_position,
+        					 setpoint_msg,raw_setpoint_position.z)
         while(not is_reached(setpoint_msg)):
             setpoint_local_pub.publish(setpoint_msg)
             task_watchdog.report_running()
             if (is_overtime(init_time, over_time)):
                 break
-            convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_position,
-                setpoint_msg,raw_setpoint_position.z)
+            convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_local_position,
+                                 setpoint_msg,raw_setpoint_position.z)
             rate.sleep()
 
-    elif (current_position.z - raw_setpoint_position.z >2):
+    elif (current_local_position.z - raw_setpoint_position.z >2):
         pre_flight = 'descending'
-        print "Need to descending"
         # flight to the target first
-        convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_position,
-        setpoint_msg,raw_setpoint_position.z)
+        convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_local_position,
+        					 setpoint_msg,raw_setpoint_position.z)
         while(not is_reached(setpoint_msg)):
             setpoint_local_pub.publish(setpoint_msg)
             task_watchdog.report_running()
             if (is_overtime(init_time, over_time)):
                 break
-            convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_position,
-                setpoint_msg,raw_setpoint_position.z)
+            convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_local_position,
+                				 setpoint_msg,raw_setpoint_position.z)
             rate.sleep()
         # descending
         set_target(setpoint_msg,
@@ -258,19 +250,18 @@ def main():
 
 
     else:
-        print "Need to fly to the target"
-        convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_position,
-        setpoint_msg,raw_setpoint_position.z)
+        convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_local_position,
+        					 setpoint_msg,raw_setpoint_position.z)
         while(not is_reached(setpoint_msg)):
             setpoint_local_pub.publish(setpoint_msg)
             task_watchdog.report_running()
             if (is_overtime(init_time, over_time)):
                 break
-            convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_position,
-                setpoint_msg,raw_setpoint_position.z)
+            convert_GPS_to_local(setpoint_GPS_target, current_GPS_position, current_local_position,
+                				 setpoint_msg,raw_setpoint_position.z)
             rate.sleep()
     
-    # TODO: publish the task status as FINISHING
+    # TODO: publish the task status as FINISH
     task_watchdog.report_finish()
 
     return 0

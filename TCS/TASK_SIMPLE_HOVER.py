@@ -68,9 +68,7 @@ def set_target(pose, x, y, z):
     pose.pose.position.x = x
     pose.pose.position.y = y
     pose.pose.position.z = z
-    pose.header=mavros.setpoint.Header(
-        frame_id="local_pose",
-        stamp=rospy.Time.now())
+    pose.header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",stamp=rospy.Time.now())
 
 def local_position_cb(topic):
     """local position subscriber callback function
@@ -79,12 +77,10 @@ def local_position_cb(topic):
         current_position.x = topic.pose.position.x
         current_position.y = topic.pose.position.y
         current_position.z = topic.pose.position.z
-        print "Current position setto: %.2f %.2f %.2f"%(current_position.x,
-            current_position.y,current_position.z)
+        print "Current position set to: %.2f %.2f %.2f"%(current_position.x,
+            											 current_position.y,
+            											 current_position.z)
         current_position.is_init=True
-
-
-   
 
 def main():
     # print "TASK: "+str(sys.argv)
@@ -92,19 +88,17 @@ def main():
     rospy.init_node('TCS_task', anonymous=True)
     rate = rospy.Rate(20)
     mavros.set_namespace('/mavros')
-    # setup local pub
+    # setup local pub /mavros/sepoint_position/local
     setpoint_local_pub = mavros.setpoint.get_pub_position_local(queue_size=10)
 
     # setup setpoint_msg
-    setpoint_msg = mavros.setpoint.PoseStamped(
-            header=mavros.setpoint.Header(
-                frame_id="local_pose",
-                stamp=rospy.Time.now()),
-            )
+    setpoint_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",
+                															 stamp=rospy.Time.now()),)
 
     # setup local sub
     position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
-    	SP.PoseStamped, local_position_cb)
+    									  SP.PoseStamped, 
+    									  local_position_cb)
 
     # setup task pub
     task_watchdog = TCS_util.Task_watchdog('TASK_SIMPLE_HOVER')
@@ -115,22 +109,22 @@ def main():
     print "The UAV will hover for %.2f seconds."% delay_set
     time_stamp_start=rospy.Time.now()
 
-
-
     # In this while loop, do the job.
     while(not (rospy.Time.now()-time_stamp_start>rospy.Duration(delay_set))):
-            # setup setpoint poisiton and prepare to publish the position
+        # setup setpoint poisiton and prepare to publish the position
         if(current_position.is_init is True):
-            set_target(setpoint_msg,current_position.x,
-                current_position.y,current_position.z)
+            set_target(setpoint_msg,
+            		   current_position.x,
+                       current_position.y,
+                       current_position.z)
         # publish the current position letting UAV hover that the position
     	setpoint_local_pub.publish(setpoint_msg)
-        # TODO: publish the task status as conducting
+        # Publish the task status as RUNNING
         task_watchdog.report_running()
 
         rate.sleep()
 
-    # TODO: publish the task status as FINISHING
+    # Publish the task status as FINISH
     task_watchdog.report_finish()
 
     return 0

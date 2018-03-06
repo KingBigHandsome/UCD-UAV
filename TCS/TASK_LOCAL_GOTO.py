@@ -43,6 +43,7 @@ from mavros import setpoint as SP
 import mavros.command
 import mavros_msgs.msg
 import mavros_msgs.srv
+import geometry_msgs
 import time
 from datetime import datetime
 
@@ -69,17 +70,14 @@ def set_target(pose, x, y, z):
     pose.pose.position.x = x
     pose.pose.position.y = y
     pose.pose.position.z = z
-    pose.header=mavros.setpoint.Header(
-        frame_id="local_pose",
-        stamp=rospy.Time.now())
+    
+    pose.header=mavros.setpoint.Header(frame_id="local_pose",stamp=rospy.Time.now())
 
 def update_msg(msg):
-    msg.header = mavros.setpoint.Header(
-                    frame_id=msg.header.frame_id,
-                    stamp=rospy.Time.now())
+    msg.header = mavros.setpoint.Header(frame_id=msg.header.frame_id,stamp=rospy.Time.now())
 
 def local_position_cb(topic):
-    """local position subscriber callback function
+    """local position subscriber callback function Topic: /mavros/local_position/pose
     """
     current_position.is_init = True
     current_position.x = topic.pose.position.x
@@ -93,8 +91,8 @@ def is_reached(setpoint):
     y = setpoint.pose.position.y
     z = setpoint.pose.position.z
     if (abs(current_position.x-x) < precision and
-            abs(current_position.y-y) < precision and
-            abs(current_position.z-z) < precision):
+        abs(current_position.y-y) < precision and
+        abs(current_position.z-z) < precision):
         print "Point reached!"
         return True
     else:
@@ -114,37 +112,40 @@ def main():
     rospy.init_node('TCS_task', anonymous=True)
     rate = rospy.Rate(20)
     mavros.set_namespace('/mavros')
-    # setup local pub
-    setpoint_local_pub = mavros.setpoint.get_pub_position_local(queue_size=10)
+    
+    # setup setpoint_local_pub
+    # rospy.Publisher(mavros.get_topic('setpoint_position', 'local'), PoseStamped, **kvargs)
+    # setpoint_local_pub = mavros.setpoint.get_pub_position_local(queue_size=10)
+    setpoint_local_pub = rospy.Publisher(mavros.get_topic('setpoint_position', 'local'), 
+    									 geometry_msgs.msg.PoseStamped, 
+    									 queue_size=10)
 
     # setup setpoint_msg
-    setpoint_msg = mavros.setpoint.PoseStamped(
-            header=mavros.setpoint.Header(
-                frame_id="local_pose",
-                stamp=rospy.Time.now()),
-            )
+    setpoint_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="local_pose",
+                															 stamp=rospy.Time.now()),)
 
-    # setup local sub
+    # setup position_local_sub
     position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
-    	SP.PoseStamped, local_position_cb)
+    									  geometry_msgs.msg.PoseStamped, 
+    									  local_position_cb)
 
-    # setup task pub
+    # make a instance of the class task_watcdog declared in the file TCS.util
     task_watchdog = TCS_util.Task_watchdog('TASK_LOCAL_GOTO')
-
-    # interprete the input position
+    
+    # interpret the input position
+    # sys.argv is a list in Python which contains the command-line arguments passed to the script.
+    # sys.argv[0] : This is the name of the script
+    # len(sys.argv) : Number of arguments
+    # str(sys.argv) : The arguments are ['name of the script','arg1','arg2'...]
+    # spilt into list use " "e.g.setpoint[0]=5 setpoint[1]=0 setpoint[2]=5 setpoint[3]=20 
     setpoint_arg = sys.argv[1].split(' ')
     raw_setpoint_position.x=float(setpoint_arg[0])
     raw_setpoint_position.y=float(setpoint_arg[1])
     raw_setpoint_position.z=float(setpoint_arg[2])
     over_time = float(setpoint_arg[3])
     print "X: {}, Y: {}, Z: {}".format(raw_setpoint_position.x,
-    	raw_setpoint_position.y, raw_setpoint_position.z)
-
-    # setup setpoint poisiton and prepare to publish the position
-    # set_target(setpoint_msg,
-    # 	setpoint_position.x,
-    # 	setpoint_position.y,
-    # 	setpoint_position.z)
+    								   raw_setpoint_position.y, 
+    								   raw_setpoint_position.z)
 
     pre_flight = 'neutral'
     init_time = rospy.Time.now()
@@ -156,9 +157,9 @@ def main():
         pre_flight = 'ascending'
         # ascending
         set_target(setpoint_msg,
-            current_position.x,
-            current_position.y,
-            raw_setpoint_position.z)
+            	   current_position.x,
+            	   current_position.y,
+            	   raw_setpoint_position.z)
         while(not is_reached(setpoint_msg)):
             update_msg(setpoint_msg)
             setpoint_local_pub.publish(setpoint_msg)
@@ -168,9 +169,9 @@ def main():
             rate.sleep()
         # flight to the target
         set_target(setpoint_msg,
-            raw_setpoint_position.x,
-            raw_setpoint_position.y,
-            raw_setpoint_position.z)
+                   raw_setpoint_position.x,
+                   raw_setpoint_position.y,
+                   raw_setpoint_position.z)
         while(not is_reached(setpoint_msg)):
             update_msg(setpoint_msg)
             setpoint_local_pub.publish(setpoint_msg)
@@ -183,9 +184,9 @@ def main():
         pre_flight = 'descending'
         # flight to the target first
         set_target(setpoint_msg,
-            raw_setpoint_position.x,
-            raw_setpoint_position.y,
-            current_position.z)
+                   raw_setpoint_position.x,
+                   raw_setpoint_position.y,
+                   current_position.z)
         while(not is_reached(setpoint_msg)):
             update_msg(setpoint_msg)
             setpoint_local_pub.publish(setpoint_msg)
@@ -195,9 +196,9 @@ def main():
             rate.sleep()
         # descending
         set_target(setpoint_msg,
-            raw_setpoint_position.x,
-            raw_setpoint_position.y,
-            raw_setpoint_position.z)
+                   raw_setpoint_position.x,
+                   raw_setpoint_position.y,
+                   raw_setpoint_position.z)
         while(not is_reached(setpoint_msg)):
             update_msg(setpoint_msg)
             setpoint_local_pub.publish(setpoint_msg)
@@ -206,12 +207,11 @@ def main():
                 break
             rate.sleep()
 
-
     else:
         set_target(setpoint_msg,
-            raw_setpoint_position.x,
-            raw_setpoint_position.y,
-            raw_setpoint_position.z)
+                   raw_setpoint_position.x,
+                   raw_setpoint_position.y,
+                   raw_setpoint_position.z)
         while(not is_reached(setpoint_msg)):
             setpoint_local_pub.publish(setpoint_msg)
             task_watchdog.report_running()
@@ -219,7 +219,7 @@ def main():
                 break
             rate.sleep()
     
-    # TODO: publish the task status as FINISHING
+    #Publish the task status as FINISH
     task_watchdog.report_finish()
 
     return 0

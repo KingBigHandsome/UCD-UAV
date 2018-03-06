@@ -1,0 +1,284 @@
+#Auther:Dashaui Wang; Date: Feb.23rd,2018
+#Prerequisite:
+	#Formate the SD card by SD CARD FORMATTER on normal computer (Macbook Pro):
+	#Use ETCHER to flash the SD Card with the image of either ubuntu-mate-16.04.2-desktop-armhf-raspberry-pi-img or
+	#                                           2017-07-05-raspbian-jessie-Zip:
+	#Setup Downloadable from the internet -main -universe -restrict -multiverse:
+	#Install the Chromium Broswer by: sudo apt-get install chromium-broswer
+	
+#Now stating installation:
+
+# 1. Make the user a member of the group "dialout" (this only has to be done once)
+sudo usermod -a -G dialout $USER
+#Logout and login again (the change is only made after a new login)
+
+# 2. Remove the modemmanager
+#Ubuntu comes with a serial modem manager which interferes heavily with any robotics related use of a serial port (or USB serial). It can removed/  deinstalled without side effects:
+sudo apt-get remove modemmanager
+
+# 3. Common Dependencies - It will take a long time, Just be patient!!!
+#Update the package list and install the following dependencies for all PX4 build targets.
+sudo apt-get update -y
+
+sudo apt-get install git zip qtcreator cmake \
+    build-essential genromfs ninja-build -y
+# Required python packages
+sudo apt-get install python-argparse \
+    python-empy python-toml python-numpy \
+    python-dev python-pip -y
+
+sudo -H pip install --upgrade pip 
+
+sudo -H pip install pandas jinja2 pyserial
+
+# optional python tools
+sudo -H pip install pyulog
+
+# 4. Ninja Build System
+#Ninja is a faster build system than Make and the PX4 CMake generators support it.On Ubuntu Linux you can install this automatically from normal repos.
+sudo apt-get install ninja-build -y
+
+# 5. FastRTPS installation
+#The following instructions can be used to install the FastRTPS 1.5 binaries to your home directory.
+wget http://www.eprosima.com/index.php/component/ars/repository/eprosima-fast-rtps/eprosima-fast-rtps-1-5-0/eprosima_fastrtps-1-5-0-linux-tar-gz -O eprosima_fastrtps-1-5-0-linux.tar.gz
+
+tar -xzf eprosima_fastrtps-1-5-0-linux.tar.gz eProsima_FastRTPS-1.5.0-Linux/
+
+tar -xzf eprosima_fastrtps-1-5-0-linux.tar.gz requiredcomponents
+
+tar -xzf requiredcomponents/eProsima_FastCDR-1.0.7-Linux.tar.gz
+
+cd eProsima_FastCDR-1.0.7-Linux; ./configure --libdir=/usr/lib; make -j1; sudo make install
+
+cd ..
+
+cd eProsima_FastRTPS-1.5.0-Linux; ./configure --libdir=/usr/lib; make -j1; sudo make install
+
+cd ..
+
+rm -rf requiredcomponents eprosima_fastrtps-1-5-0-linux.tar.gz
+
+# 6. Simulation Dependencies
+#jMAVSim
+
+#Install the dependencies for jMAVSim Simulation.
+# jMAVSim simulator
+sudo apt-get install ant openjdk-8-jdk openjdk-8-jre -y
+
+# 7. ROS/Gazebo
+##Install the dependencies for ROS/Gazebo ("Kinetic"). These include Gazebo7 (at time of writing, the default version that comes with ROS). The instructions come from the ROS Wiki Ubuntu page.
+
+# ROS Kinetic/Gazebo
+## Gazebo dependencies
+sudo apt-get install protobuf-compiler libeigen3-dev libopencv-dev -y
+
+## ROS Gazebo: http://wiki.ros.org/kinetic/Installation/Ubuntu
+## Setup keys
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+
+sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116
+## For keyserver connection problems substitute hkp://pgp.mit.edu:80 or hkp://keyserver.ubuntu.com:80 above.
+sudo apt-get update
+## Get ROS/Gazebo
+sudo apt-get install ros-kinetic-desktop-full -y
+## Initialize rosdep
+sudo rosdep init
+
+rosdep update
+## Setup environment variables
+rossource="source /opt/ros/kinetic/setup.bash"
+
+if grep -Fxq "$rossource" ~/.bashrc; then echo ROS setup.bash already in .bashrc;
+else echo "$rossource" >> ~/.bashrc; fi
+
+source ~/.bashrc
+## Get rosinstall
+sudo apt-get install python-rosinstall -y
+
+# 8. MAVROS
+#Install the MAVROS (MAVLink on ROS) package. This enables MAVLink communication between computers running ROS, MAVLink enabled autopilots, and MAVLink enabled GCS.
+## Create catkin workspace (ROS build system)
+mkdir -p ~/catkin_ws/src
+
+cd ~/catkin_ws
+
+## Install dependencies
+sudo apt-get install python-wstool python-rosinstall-generator python-catkin-tools -y
+
+## Initialise wstool
+wstool init ~/catkin_ws/src
+
+## Build MAVROS
+### Get source (upstream - released)
+rosinstall_generator --upstream mavros | tee /tmp/mavros.rosinstall
+### Get latest released mavlink package
+rosinstall_generator mavlink | tee -a /tmp/mavros.rosinstall
+### Setup workspace & install deps
+wstool merge -t src /tmp/mavros.rosinstall
+
+wstool update -t src
+
+rosdep install --from-paths src --ignore-src --rosdistro kinetic -y
+##**************************************************************************************************************************************************
+## Build! (There is a big problem to Build the Catkin_ws at Raspberry Pi3 because of the limit of RAM(1G). The RaspberryPi3 will block when more than one theads are running at the same time. You can use the "top" command to monitor the usage of RAM by different threads)
+## Do the build commander later!
+##***********************************************************************************************************************************************##
+catkin build
+## Re-source environment to reflect new packages/build environment
+catkin_ws_source="source ~/catkin_ws/devel/setup.bash"
+
+if grep -Fxq "$catkin_ws_source" ~/.bashrc; then echo ROS catkin_ws setup.bash already in .bashrc;
+else echo "$catkin_ws_source" >> ~/.bashrc; fi
+
+source ~/.bashrc
+
+# 9. Install the GeographicLib
+cd ~/Downloads
+
+wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
+
+sudo chmod +x ./install_geographiclib_datasets.sh
+
+sudo ./install_geographiclib_datasets.sh
+
+cd -
+
+# 10. Download the Firmware of PX4
+sudo mkdir -p ~/src
+
+cd ~/src 
+
+git clone https://github.com/PX4/Firmware.git
+
+# 11. Download the project of UCD-UAV
+
+cd ~/catkin_ws/src
+
+git clone https://github.com/ucdart/UCD-UAV.git
+
+cd UCD_UAV/
+
+git fetch
+
+git checkout 2017fix
+
+cd ~/catkin_ws
+
+catkin_make_isolated -j1
+
+# 12. Install gedit on Ubuntu-Mate
+
+sudo apt-get install gedit
+
+##########################################################################################################
+# Terminal 1
+
+source /opt/ros/kinetic/setup.bash
+
+roscore
+
+
+source /opt/ros/kinetic/setup.bash
+
+roslaunch mavros px4.launch fcu_url:="udp://:14540@192.168.1.36:14557"
+
+
+source /opt/ros/kinetic/setup.bash
+
+roslaunch mavros px4.launch fcu_url:="udp://:14540@127.0.0.1:14557"
+
+#Terminal 2 
+
+cd ~/src/Firmware/
+
+make posix_sitl_default jmavsim
+
+
+
+cd ~/src/Firmware/
+
+make posix_sitl_default gazebo
+
+#Terminal 3
+
+cd ~/catkin_ws/
+
+catkin_make_isolated -j1
+
+#Terminal 4
+
+cd ~/catkin_ws/
+
+source devel_isolated/setup.bash
+
+cd ~/catkin_ws/src/UCD-UAV/TCS/
+
+python default_offboard.py
+
+#Terminal 5
+
+rostopic list
+
+#Terminal 6
+
+rosnode list
+
+#Terminal 7
+
+rostopic echo /mavros/local_position/local
+
+#Terminal 8 
+
+rostopic echo /mavros/global_position/global
+
+#Terminal 9
+
+rostopic echo /mavros/state
+
+#Terminal 10
+
+rostopic echo /mavros/local_position/pose
+
+#Termianl 11
+
+rostopic echo /mavros/setpoint_position/local
+
+
+#Terminal 12
+
+rostopic echo /mavros/local_position/velocity
+
+#Terminal 13
+
+rostopic echo /mavros/local_position/odom
+
+#Terminal 14
+
+rosservice list
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
