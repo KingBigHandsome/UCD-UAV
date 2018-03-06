@@ -1,0 +1,53 @@
+# First add ssh key in GitHub (Find the public key from "id_rsa.pub")
+cd catkin_ws/src
+git clone git@github.com:KingBigHandsome/UCD-UAV.git
+cd UCD-UAV/
+
+#Get all updates of remote version repository
+git fetch  
+
+#check local branch
+git branch
+
+#Bulid a new branch and switch to it
+git checkout -b 2017fix
+
+#check local branch
+git branch
+
+#check the addresses of remote hosts
+git remote -v
+
+#Grab and download the remote branch named as "2017" from GitHub 
+git pull origin 2017fix
+
+#bulid a new local branch named as "DashuaiWang" and switch to it
+git checkout -b DashuaiWang
+git branch 
+
+#Grab and download the remote branch named as "DashuaiWang" from GitHub 
+git pull origin DashuaiWang
+
+## Optimize the code based on the local branch "DashuaiWang"
+##
+...
+
+
+# add all these modifications to workspace
+git add .
+
+
+#commit all these revision to the local repository
+git commit -m "Slightly optimized by DashuaiWang"
+
+# Update the remote branch in the repository in GitHub
+git push origin DashuaiWang 
+
+git branch
+
+#check the remote branches in GitHub
+git branch -r
+
+
+cd catkin_ws
+catkin_make_isolated
