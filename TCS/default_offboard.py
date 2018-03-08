@@ -31,7 +31,7 @@ import sys
 import signal
 import subprocess
 
-emergency_sw = False
+emergency_sw = 'Up'
 
 # signal.SIGINT stop the thread
 def signal_handler(signal, frame):
@@ -44,7 +44,7 @@ signal.signal(signal.SIGINT, signal_handler)
 # make an instance of the State.msg stored in the folder of mavros_msgs/msg/State.msg
 UAV_state = mavros_msgs.msg.State() 
 
-
+# Initialize the array type variable 
 rc_out_channels = []
 
 
@@ -60,15 +60,16 @@ def _rc_out_callback(topic):
 
     rc_out_channels = topic.channels
     
-    # print "The output of switch H is ", rc_out_channels[5]
-    
     global emergency_sw
     
-    if (rc_out_channels[5] >= 1800):
-        emergency_sw = True
+    if (rc_out_channels[5] <= 1250):
+        emergency_sw = 'Up'
+        #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
+    elif (rc_out_channels[5] > 1250 and rc_out_channels[5] < 1750):
+        emergency_sw = 'Neutral'
         #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
     else:
-        emergency_sw = False
+        emergency_sw = 'Down'
         #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
     
 #uncalled function
@@ -102,7 +103,6 @@ def main():
     mavros.set_namespace('/mavros')
 
     # setup subscriber
-    # /mavros/state
     state_sub = rospy.Subscriber(mavros.get_topic('state'),mavros_msgs.msg.State, _state_callback)
     
     rc_out    = rospy.Subscriber(mavros.get_topic('rc','out'),mavros_msgs.msg.RCOut, _rc_out_callback)
@@ -163,38 +163,45 @@ def main():
 
     mavros.command.arming(True)
 
-    # send 100 setpoints before starting               
+    # send 100 setpoints before starting This is essential procedure before switch to OFFBOARD Mode!              
     for i in range(0,50):
         #setpoint_local_pub.publish(setpoint_local_msg)
         setpoint_global_pub.publish(setpoint_global_msg)
         rate.sleep()
 
     #set_mode(0,'OFFBOARD')
+    
     print("Pre start finished!")
 
     last_request = rospy.Time.now()
 
     # enter the main loop
     while(True):
-        #rospy.loginfo("The current flight mode is: {};The current arm state is: {}".format(UAV_state.mode,UAV_state.armed))
-        #rospy.loginfo("The current flight mode is: {}".format(UAV_state.mode))
-        #rospy.loginfo("The current arm state is: {}".format(UAV_state.armed))
-        if(emergency_sw):
-            rospy.loginfo("Warning!!! Emergency Switch was triggerd!")
-            if( UAV_state.mode != "ALTCTL" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
-                if( set_mode(0,'STABILIZED')):
-                    rospy.loginfo("Running in 'STABILIZED' mode!")
-                last_request = rospy.Time.now()
+
+        if(emergency_sw != 'Down'):
+            #rospy.loginfo("Warning: Running of flight tasks were blocked!")
+            if(emergency_sw == 'Neutral'):
+                if( UAV_state.mode != "ALTCTL" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
+                    if( set_mode(0,'ALTCTL')):
+                        rospy.loginfo("'ALTCTL' mode enabled")
+                    last_request = rospy.Time.now()
+            else:
+                if( UAV_state.mode != "STABILIZED" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
+                    if( set_mode(0,'STABILIZED')):
+                        rospy.loginfo("'STABILIZED' mode enabled")
+                    last_request = rospy.Time.now()
+                
         else:
             if( UAV_state.mode != "OFFBOARD" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
 		        if( set_mode(0,'OFFBOARD')):
-		            print "Offboard enabled"
+		            print "'OFFBOARD' mode enabled"
 		        last_request = rospy.Time.now()
             else:
                 if( not UAV_state.armed and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
                     if(mavros.command.arming(True)):
                         print "Vehicle armed"
                     last_request = rospy.Time.now()
+            
             # update setpoint to stay in offboard mode
             # TCS.util.py: class update_setpoint: Function:update
             
@@ -209,7 +216,7 @@ def main():
 
                 else:
                     # Current task has been done and no task left
-                    rospy.loginfo("All tasks have been done! Flight mode will change to Stabilized")
+                    rospy.loginfo("All tasks have been done! Flight mode will change to 'ALTCTL'")
                     while (UAV_state.mode != "ALTCTL"):
                         if((rospy.Time.now() - last_request) > rospy.Duration(5.0)):
                             set_mode(0,'ALTCTL')

@@ -30,7 +30,7 @@ import sys
 import signal
 import subprocess
 
-emergency_sw = False
+emergency_sw = 'Neutral'
 
 # signal.SIGINT stop the thread
 def signal_handler(signal, frame):
@@ -48,20 +48,24 @@ def _state_callback(topic):
     UAV_state.mode = topic.mode
     UAV_state.guided = topic.guided
 def _rc_out_callback(topic):
+
     rc_out_channels = topic.channels
-            
-    #print "The output of switch H is ", rc_out_channels[5]
-    
+   
     global emergency_sw
     
-    if (rc_out_channels[5] >= 1500):
-        emergency_sw = True
-        #rospy.loginfo("emergency_sw is Ture")
-        #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
+    rospy.loginfo("The output of switch B is {}".format(rc_out_channels[5]))        
+    #print "The output of switch B is ", rc_out_channels[5]
+    
+    if (rc_out_channels[5] <= 1250):
+        emergency_sw = 'Up'
+        rospy.loginfo("emergency_sw is {}".format(emergency_sw))
+    elif (rc_out_channels[5] > 1250 and rc_out_channels[5] < 1750):
+        emergency_sw = 'Neutral'
+        rospy.loginfo("emergency_sw is {}".format(emergency_sw))
     else:
-        emergency_sw = False
-        #rospy.loginfo("emergency_sw is False")
-        #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
+        emergency_sw = 'Down'
+        rospy.loginfo("emergency_sw is {}".format(emergency_sw))
+
 
 
 
@@ -70,7 +74,7 @@ def main():
     rate = rospy.Rate(20)
     mavros.set_namespace('/mavros')
     
-    #global emergency_sw
+    #glwobal emergency_s
     
     # setup subscriber
     # /mavros/state
@@ -83,10 +87,13 @@ def main():
         rospy.loginfo("The current flight mode is: {}".format(UAV_state.mode))
         rospy.loginfo("The current arm state is: {}".format(UAV_state.armed))
         rospy.loginfo("emergency_sw is {}".format(emergency_sw))
-        #if(emergency_sw):
-            #rospy.loginfo("Emergency STOP! Please loiter!")
-        #else:
-            #rospy.loginfo("Let's continue!")
+        if(emergency_sw != 'Down'):
+            if(emergency_sw == 'Neutral'):
+                rospy.loginfo("Neutral")
+            else:
+                rospy.loginfo("Up")
+        else:
+            rospy.loginfo("Down")
         rate.sleep()
 
 if __name__ == '__main__':
