@@ -39,8 +39,9 @@ class vector3(object):
         self.y = 0.0
         self.z = 0.0
         self.is_init=False
-
-
+#class list(object):
+#    def __init__(self):
+#        self.channels = list(...)
 
 	# Called by default_offboard.py
 class update_setpoint(object):
@@ -159,12 +160,12 @@ class update_setpoint(object):
         if (self.update_flag=='LOCAL' and self.local_last_pos.is_init):
             self._set_pose_local(self.local_msg, self.local_last_pos)
             self.local_pub.publish(self.local_msg)      
-            print "LOCAL Setpoint keeper executed!"
+            #print "LOCAL Setpoint keeper executed!"
             	 
         if (self.update_flag=='GPS' and self.global_last_pos.is_init):
             self._set_pose_global(self.GPS_msg, self.global_last_pos)
             self.GPS_pub.publish(self.GPS_msg)
-            print "GPS Setpoint keeper executed!"
+            #print "GPS Setpoint keeper executed!"
         return
    
         
