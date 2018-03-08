@@ -88,7 +88,7 @@ def is_reached(current, setpoint):
     if (abs(current.x-setpoint.pose.position.x) < 0.5 and
         abs(current.y-setpoint.pose.position.y) < 0.5 and
         abs(current.z-setpoint.pose.position.z) < 0.5):
-        print "Point reached!"
+        rospy.loginfo("Point reached!")
         return True
     else:
         return False
@@ -171,7 +171,7 @@ def main():
 
     #set_mode(0,'OFFBOARD')
     
-    print("Pre start finished!")
+    rospy.loginfo("Pre start finished!")
 
     last_request = rospy.Time.now()
 
@@ -194,12 +194,12 @@ def main():
         else:
             if( UAV_state.mode != "OFFBOARD" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
 		        if( set_mode(0,'OFFBOARD')):
-		            print "'OFFBOARD' mode enabled"
+		            rospy.loginfo("'OFFBOARD' mode enabled")
 		        last_request = rospy.Time.now()
             else:
                 if( not UAV_state.armed and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
                     if(mavros.command.arming(True)):
-                        print "Vehicle armed"
+                        rospy.loginfo("Vehicle armed")
                     last_request = rospy.Time.now()
             
             # update setpoint to stay in offboard mode

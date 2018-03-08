@@ -143,9 +143,9 @@ def main():
     raw_setpoint_position.y=float(setpoint_arg[1])
     raw_setpoint_position.z=float(setpoint_arg[2])
     over_time = float(setpoint_arg[3])
-    print "X: {}, Y: {}, Z: {}".format(raw_setpoint_position.x,
-    								   raw_setpoint_position.y, 
-    								   raw_setpoint_position.z)
+    print "The Destination is : X = {}, y = {}, Z = {}".format(raw_setpoint_position.x,
+    								                           raw_setpoint_position.y, 
+    								                           raw_setpoint_position.z)
 
     pre_flight = 'neutral'
     init_time = rospy.Time.now()
