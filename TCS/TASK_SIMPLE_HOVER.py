@@ -74,9 +74,9 @@ def local_position_cb(topic):
     """local position subscriber callback function
     """
     if (current_position.is_init is False):
-        current_position.x = topic.pose.position.x
-        current_position.y = topic.pose.position.y
-        current_position.z = topic.pose.position.z
+        current_position.x = topic.pose.pose.position.x
+        current_position.y = topic.pose.pose.position.y
+        current_position.z = topic.pose.pose.position.z
         print "Current position set to: %.2f %.2f %.2f"%(current_position.x,
             											 current_position.y,
             											 current_position.z)
@@ -96,7 +96,7 @@ def main():
                 															 stamp=rospy.Time.now()),)
 
     # setup local sub
-    position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
+    position_local_sub = rospy.Subscriber(mavros.get_topic('global_position', 'local'),
     									  SP.PoseStamped, 
     									  local_position_cb)
 

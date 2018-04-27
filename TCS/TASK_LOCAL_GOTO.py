@@ -80,9 +80,9 @@ def local_position_cb(topic):
     """local position subscriber callback function Topic: /mavros/local_position/pose
     """
     current_position.is_init = True
-    current_position.x = topic.pose.position.x
-    current_position.y = topic.pose.position.y
-    current_position.z = topic.pose.position.z
+    current_position.x = topic.pose.pose.position.x
+    current_position.y = topic.pose.pose.position.y
+    current_position.z = topic.pose.pose.position.z
 
 def is_reached(setpoint):
     """Check if the UAV reached the destination
@@ -121,11 +121,10 @@ def main():
     									 queue_size=10)
 
     # setup setpoint_msg
-    setpoint_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="local_pose",
-                															 stamp=rospy.Time.now()),)
+    setpoint_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="local_pose",stamp=rospy.Time.now()),)
 
     # setup position_local_sub
-    position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
+    position_local_sub = rospy.Subscriber(mavros.get_topic('global_position', 'local'),
     									  geometry_msgs.msg.PoseStamped, 
     									  local_position_cb)
 

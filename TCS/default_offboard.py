@@ -108,15 +108,6 @@ def main():
     rc_out    = rospy.Subscriber(mavros.get_topic('rc','out'),mavros_msgs.msg.RCOut, _rc_out_callback)
     
     
-    # /mavros/local_position/pose
-    # local_position_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
-    #     									SP.PoseStamped, 
-    #										_local_position_callback)
-    # /mavros/setpoint_raw/target_local
-    #setpoint_local_sub = rospy.Subscriber(mavros.get_topic('setpoint_raw', 'target_local'),
-    #    								  mavros_msgs.msg.PositionTarget,
-    #    								  _setpoint_position_callback)
-
     # setup publisher
     # /mavros/setpoint_position/local
     
@@ -130,13 +121,9 @@ def main():
     set_arming = rospy.ServiceProxy('/mavros/cmd/arming', mavros_msgs.srv.CommandBool) 
     set_mode   = rospy.ServiceProxy('/mavros/set_mode', mavros_msgs.srv.SetMode)  
 
-    setpoint_local_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(
-    										   		 frame_id="setpoint_local",
-                							   		 stamp=rospy.Time.now()),)
+    setpoint_local_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="setpoint_local",stamp=rospy.Time.now()),)
 
-    setpoint_global_msg = mavros_msgs.msg.GlobalPositionTarget(header=mavros.setpoint.Header(
-                											   frame_id="setpoint_gps",
-               	 											   stamp=rospy.Time.now()),)
+    setpoint_global_msg = mavros_msgs.msg.GlobalPositionTarget(header=mavros.setpoint.Header(frame_id="setpoint_gps",stamp=rospy.Time.now()),)
 
     #read task list
     Task_mgr = TCS_util.Task_manager('task_list.log')
@@ -155,13 +142,13 @@ def main():
 
     setpoint_global_msg.coordinate_frame = 11
     setpoint_global_msg.type_mask = 8+16+32+128+256
-    setpoint_global_msg.latitude = 47.3978800
-    setpoint_global_msg.longitude = 8.5455920
+    setpoint_global_msg.latitude = 38.5400466
+    setpoint_global_msg.longitude = -121.759239
     setpoint_global_msg.altitude = 10
     setpoint_global_msg.yaw = 90
     setpoint_global_msg.yaw_rate =10
 
-    mavros.command.arming(True)
+    
 
     # send 100 setpoints before starting This is essential procedure before switch to OFFBOARD Mode!              
     for i in range(0,50):
@@ -169,62 +156,49 @@ def main():
         setpoint_global_pub.publish(setpoint_global_msg)
         rate.sleep()
 
-    #set_mode(0,'OFFBOARD')
-    
-    rospy.loginfo("Pre start finished!")
+    set_mode(0,'STABILIZE')
+
+    if(set_arming(True)):
+    	rospy.loginfo("Pre start finished!")
 
     last_request = rospy.Time.now()
 
     # enter the main loop
     while(True):
 
-        if(emergency_sw != 'Down'):
-            #rospy.loginfo("Warning: Running of flight tasks were blocked!")
-            if(emergency_sw == 'Neutral'):
-                if( UAV_state.mode != "ALTCTL" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
-                    if( set_mode(0,'ALTCTL')):
-                        rospy.loginfo("'ALTCTL' mode enabled")
-                    last_request = rospy.Time.now()
-            else:
-                if( UAV_state.mode != "STABILIZED" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
-                    if( set_mode(0,'STABILIZED')):
-                        rospy.loginfo("'STABILIZED' mode enabled")
-                    last_request = rospy.Time.now()
-                
-        else:
-            if( UAV_state.mode != "OFFBOARD" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
-		        if( set_mode(0,'OFFBOARD')):
-		            rospy.loginfo("'OFFBOARD' mode enabled")
-		        last_request = rospy.Time.now()
-            else:
-                if( not UAV_state.armed and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
-                    if(mavros.command.arming(True)):
-                        rospy.loginfo("Vehicle armed")
-                    last_request = rospy.Time.now()
-            
-            # update setpoint to stay in offboard mode
-            # TCS.util.py: class update_setpoint: Function:update
-            
-            setpoint_keeper.update()
-            
-            if(Task_mgr.task_finished()):
-                # If the current task has been done
-                rospy.loginfo("Current task is finished!")
-                if (not Task_mgr.alldone()):
-                    # If there are tasks left
-                    Task_mgr.nexttask()
+		if( UAV_state.mode != "GUIDED" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
+			if( set_mode(0,'GUIDED')):
+				rospy.loginfo("'GUIDED' mode enabled")
+			last_request = rospy.Time.now()
+		if( not UAV_state.armed and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
+			if(mavros.command.arming(True)):
+				rospy.loginfo("Vehicle armed")
+			last_request = rospy.Time.now()
 
-                else:
-                    # Current task has been done and no task left
-                    rospy.loginfo("All tasks have been done! Flight mode will change to 'ALTCTL'")
-                    while (UAV_state.mode != "ALTCTL"):
-                        if((rospy.Time.now() - last_request) > rospy.Duration(5.0)):
-                            set_mode(0,'ALTCTL')
-                            last_request = rospy.Time.now()
-                        rate.sleep()
-                    return 0
+		if( UAV_state.guided is True and UAV_state.armed is True):
+		# update setpoint to stay in offboard mode
+		# TCS.util.py: class update_setpoint: Function:update
+			setpoint_keeper.update()
+		
+			if(Task_mgr.task_finished()):
+				# If the current task has been done
+				rospy.loginfo("Current task is finished!")
 
-            rate.sleep()
+				if (not Task_mgr.alldone()):
+					# If there are tasks left
+					Task_mgr.nexttask()
+
+				else:
+					# Current task has been done and no task left
+					rospy.loginfo("All tasks have been done! Flight mode will change to 'RTL'")
+					while (UAV_state.mode != "RTL"):
+						if((rospy.Time.now() - last_request) > rospy.Duration(2.0)):
+							set_mode(0,'RTL')
+							last_request = rospy.Time.now()
+						rate.sleep()
+					return 0
+
+			rate.sleep()
     return 0
 
 if __name__ == '__main__':

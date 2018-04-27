@@ -88,7 +88,7 @@ def main():
         rate.sleep()
     set_mode(0,'STABILIZE')
     set_arming(True)
-    #mavros.command.arming(True)
+
 
 
     rospy.loginfo("Pre start finished!")
