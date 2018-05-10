@@ -20,6 +20,7 @@ import mavros.command
 import mavros_msgs.msg
 import mavros_msgs.srv
 import geometry_msgs
+import nav_msgs.msg
 import time
 from datetime import datetime
 from UAV_Task import *
@@ -31,7 +32,6 @@ import sys
 import signal
 import subprocess
 
-emergency_sw = 'Up'
 
 # signal.SIGINT stop the thread
 def signal_handler(signal, frame):
@@ -39,14 +39,16 @@ def signal_handler(signal, frame):
         sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
-
-#current_pose = vector3()
-# make an instance of the State.msg stored in the folder of mavros_msgs/msg/State.msg
+# make an instance of the State.msg
 UAV_state = mavros_msgs.msg.State() 
 
-# Initialize the array type variable 
-rc_out_channels = []
+current_position = TCS_util.vector3()
 
+precision = 0.5
+
+takeoff_altitude = 7.5
+
+emergency_sw = False
 
 # Definitions of various callback functions
 def _state_callback(topic):
@@ -55,151 +57,124 @@ def _state_callback(topic):
     UAV_state.mode = topic.mode
     UAV_state.guided = topic.guided
 
-
 def _rc_out_callback(topic):
 
-    rc_out_channels = topic.channels
-    
     global emergency_sw
-    
-    if (rc_out_channels[5] <= 1250):
-        emergency_sw = 'Up'
-        #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
-    elif (rc_out_channels[5] > 1250 and rc_out_channels[5] < 1750):
-        emergency_sw = 'Neutral'
+    rc_out_channels = topic.channels
+
+    if (rc_out_channels[5] <= 1750):
+        emergency_sw = True
         #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
     else:
-        emergency_sw = 'Down'
+        emergency_sw = False
         #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
-    
-#uncalled function
-def _setpoint_position_callback(topic):
-    pass
-    
-#uncalled function
-def _set_pose(pose, x, y, z):
-    pose.pose.position.x = x
-    pose.pose.position.y = y
-    pose.pose.position.z = z
-    pose.header=mavros.setpoint.Header(frame_id="att_pose",stamp=rospy.Time.now())
-    
-#uncalled function
-def is_reached(current, setpoint):
-    if (abs(current.x-setpoint.pose.position.x) < 0.5 and
-        abs(current.y-setpoint.pose.position.y) < 0.5 and
-        abs(current.z-setpoint.pose.position.z) < 0.5):
-        rospy.loginfo("Point reached!")
+
+def local_position_cb(topic):
+    """local position subscriber callback function Topic: /mavros/local_position/pose
+    """
+    current_position.is_init = True
+    current_position.x = topic.pose.position.x
+    current_position.y = topic.pose.position.y
+    current_position.z = topic.pose.position.z
+
+def is_reached():
+    """Check if the UAV reached the takeoff altitude
+    """
+    if (abs(current_position.z-takeoff_altitude) < precision):
+        print "Takeoff Finished!"
         return True
     else:
         return False
-        
-#uncalled function
-def update_setpoint():
-    pass
+
 
 def main():
+
     rospy.init_node('default_offboard', anonymous=True)
     rate = rospy.Rate(20)
     mavros.set_namespace('/mavros')
 
     # setup subscriber
     state_sub = rospy.Subscriber(mavros.get_topic('state'),mavros_msgs.msg.State, _state_callback)
-    
     rc_out    = rospy.Subscriber(mavros.get_topic('rc','out'),mavros_msgs.msg.RCOut, _rc_out_callback)
-    
-    
-    # setup publisher
-    # /mavros/setpoint_position/local
-    
-    setpoint_local_pub  = rospy.Publisher(mavros.get_topic('setpoint_position', 'local'), 
-        								  geometry_msgs.msg.PoseStamped, 
-        								  queue_size=10)
-    setpoint_global_pub = rospy.Publisher(mavros.get_topic('setpoint_raw', 'global'),
-        								  mavros_msgs.msg.GlobalPositionTarget, 
-        								  queue_size=10)
-    # setup service
-    set_arming = rospy.ServiceProxy('/mavros/cmd/arming', mavros_msgs.srv.CommandBool) 
-    set_mode   = rospy.ServiceProxy('/mavros/set_mode', mavros_msgs.srv.SetMode)  
+    position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
+                                          geometry_msgs.msg.PoseStamped,
+                                          local_position_cb)
+    # setup services
+    set_arming  = rospy.ServiceProxy('/mavros/cmd/arming'  , mavros_msgs.srv.CommandBool)
+    set_mode    = rospy.ServiceProxy('/mavros/set_mode'    , mavros_msgs.srv.SetMode)
+    set_home    = rospy.ServiceProxy('/mavros/cmd/set_home', mavros_msgs.srv.CommandHome)
+    set_takeoff = rospy.ServiceProxy('/mavros/cmd/takeoff' , mavros_msgs.srv.CommandTOL)
 
-    setpoint_local_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="setpoint_local",stamp=rospy.Time.now()),)
-
-    setpoint_global_msg = mavros_msgs.msg.GlobalPositionTarget(header=mavros.setpoint.Header(frame_id="setpoint_gps",stamp=rospy.Time.now()),)
-
-    #read task list
+    # read task list
     Task_mgr = TCS_util.Task_manager('task_list.log')
 
     # start setpoint_update instance
+    # In Firmware PX4, this function defined in Class update_setpoint is necessary to keep the flight mode in 'OFFBOARD',
+    # But, it seems like unnecessary in Ardupilot.
     setpoint_keeper = TCS_util.update_setpoint(rospy)
 
-    # wait for FCU connection
     while(not UAV_state.connected):
+        #rospy.loginfo("Waiting for vaild connection!")
+        rate.sleep()
+    while(UAV_state.mode != "GUIDED"):
+        set_mode(0,'GUIDED')
+        #rospy.loginfo("Please set mode to 'GUIDED'!")
+        rate.sleep()
+    while(not UAV_state.armed):
+        set_arming(True)
+        #rospy.loginfo("Please arm!")
+        rate.sleep()
+    while(not set_home(True,0.0,0.0,0.0)):
+        #rospy.loginfo("Please set_home!")
+        rate.sleep()
+    while(not set_takeoff(0.0,0.0,0.0,0.0,takeoff_altitude)):
+        #rospy.loginfo("Please set_takeoff!")
+        rate.sleep()
+    while(not is_reached()):
+        #rospy.loginfo("Waiting for takeoff to be done...")
         rate.sleep()
 
-    # initialize the setpoint
-    setpoint_local_msg.pose.position.x = 0
-    setpoint_local_msg.pose.position.y = 0
-    setpoint_local_msg.pose.position.z = 3
-
-    setpoint_global_msg.coordinate_frame = 11
-    setpoint_global_msg.type_mask = 8+16+32+128+256
-    setpoint_global_msg.latitude = 38.5400466
-    setpoint_global_msg.longitude = -121.759239
-    setpoint_global_msg.altitude = 10
-    setpoint_global_msg.yaw = 90
-    setpoint_global_msg.yaw_rate =10
-
-    
-
-    # send 100 setpoints before starting This is essential procedure before switch to OFFBOARD Mode!              
-    for i in range(0,50):
-        #setpoint_local_pub.publish(setpoint_local_msg)
-        setpoint_global_pub.publish(setpoint_global_msg)
-        rate.sleep()
-
-    set_mode(0,'STABILIZE')
-
-    if(set_arming(True)):
-    	rospy.loginfo("Pre start finished!")
+    time.sleep(5);#Delay for 5 seconds
 
     last_request = rospy.Time.now()
 
     # enter the main loop
     while(True):
 
-		if( UAV_state.mode != "GUIDED" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
-			if( set_mode(0,'GUIDED')):
-				rospy.loginfo("'GUIDED' mode enabled")
-			last_request = rospy.Time.now()
-		if( not UAV_state.armed and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
-			if(mavros.command.arming(True)):
-				rospy.loginfo("Vehicle armed")
-			last_request = rospy.Time.now()
+        if(emergency_sw):
 
-		if( UAV_state.guided is True and UAV_state.armed is True):
-		# update setpoint to stay in offboard mode
-		# TCS.util.py: class update_setpoint: Function:update
-			setpoint_keeper.update()
-		
-			if(Task_mgr.task_finished()):
-				# If the current task has been done
-				rospy.loginfo("Current task is finished!")
+            if( UAV_state.mode != "GUIDED" and (rospy.Time.now() - last_request > rospy.Duration(1.0))):
+                if( set_mode(0,'GUIDED')):
+                    rospy.loginfo("'GUIDED' mode enabled")
+                    last_request = rospy.Time.now()
+            if( not UAV_state.armed and (rospy.Time.now() - last_request > rospy.Duration(1.0))):
+                if(mavros.command.arming(True)):
+                    rospy.loginfo("Vehicle armed")
+                    last_request = rospy.Time.now()
 
-				if (not Task_mgr.alldone()):
-					# If there are tasks left
-					Task_mgr.nexttask()
+            if( UAV_state.mode == "GUIDED" and UAV_state.armed is True):
 
-				else:
-					# Current task has been done and no task left
-					rospy.loginfo("All tasks have been done! Flight mode will change to 'RTL'")
-					while (UAV_state.mode != "RTL"):
-						if((rospy.Time.now() - last_request) > rospy.Duration(2.0)):
-							set_mode(0,'RTL')
-							last_request = rospy.Time.now()
-						rate.sleep()
-					return 0
+                 #setpoint_keeper.update()
 
-			rate.sleep()
-    return 0
+                if(Task_mgr.task_finished()):
+                # If the current task has been done
+                    rospy.loginfo("Current task is finished!")
+
+                    if (not Task_mgr.alldone()):
+                        Task_mgr.nexttask()
+                    else:
+                        # Current task has been done and no task left
+                        rospy.loginfo("All tasks have been done! Flight mode changed to 'RTL'")
+                        while (UAV_state.mode != "RTL"):
+                            if((rospy.Time.now() - last_request) > rospy.Duration(2.0)):
+                                set_mode(0,'RTL')
+                                last_request = rospy.Time.now()
+                            rate.sleep()
+                        return 0
+                rate.sleep()
+        else:
+            return 0
+    #return 0
 
 if __name__ == '__main__':
     main()

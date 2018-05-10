@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 '''
 '''
 This is the TASK_SIMPLE_HOVER
-This task will hover at the current position until the 
+This task will hover at the current position until the
 time delay reached
 TODO:
 implement an appropriate platfrom recognition
@@ -41,6 +41,8 @@ from mavros import setpoint as SP
 import mavros.command
 import mavros_msgs.msg
 import mavros_msgs.srv
+import geometry_msgs
+import nav_msgs.msg
 import time
 from datetime import datetime
 
@@ -62,24 +64,30 @@ frame_id='SIMPLE_HOVER'
 
 def set_target(pose, x, y, z):
     """A wrapper assigning the x,y,z values
-    to the pose. pose usually is type of 
+    to the pose. pose usually is type of
     mavros.setpoint.PoseStamped
     """
     pose.pose.position.x = x
     pose.pose.position.y = y
     pose.pose.position.z = z
+
+    pose.pose.orientation.x = 0.0
+    pose.pose.orientation.y = 0.0
+    pose.pose.orientation.z = 0.0
+    pose.pose.orientation.w = 0.0
+
     pose.header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",stamp=rospy.Time.now())
 
 def local_position_cb(topic):
     """local position subscriber callback function
     """
     if (current_position.is_init is False):
-        current_position.x = topic.pose.pose.position.x
-        current_position.y = topic.pose.pose.position.y
-        current_position.z = topic.pose.pose.position.z
+        current_position.x = topic.pose.position.x
+        current_position.y = topic.pose.position.y
+        current_position.z = topic.pose.position.z
         print "Current position set to: %.2f %.2f %.2f"%(current_position.x,
-            											 current_position.y,
-            											 current_position.z)
+                                                         current_position.y,
+                                                         current_position.z)
         current_position.is_init=True
 
 def main():
@@ -93,12 +101,12 @@ def main():
 
     # setup setpoint_msg
     setpoint_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",
-                															 stamp=rospy.Time.now()),)
+                                                                             stamp=rospy.Time.now()),)
 
     # setup local sub
-    position_local_sub = rospy.Subscriber(mavros.get_topic('global_position', 'local'),
-    									  SP.PoseStamped, 
-    									  local_position_cb)
+    position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
+                                                            geometry_msgs.msg.PoseStamped,
+                                                            local_position_cb)
 
     # setup task pub
     task_watchdog = TCS_util.Task_watchdog('TASK_SIMPLE_HOVER')
@@ -114,11 +122,11 @@ def main():
         # setup setpoint poisiton and prepare to publish the position
         if(current_position.is_init is True):
             set_target(setpoint_msg,
-            		   current_position.x,
+                           current_position.x,
                        current_position.y,
                        current_position.z)
         # publish the current position letting UAV hover that the position
-    	setpoint_local_pub.publish(setpoint_msg)
+        setpoint_local_pub.publish(setpoint_msg)
         # Publish the task status as RUNNING
         task_watchdog.report_running()
 

@@ -37,13 +37,11 @@ class Task_GOTO_Local(object):
     def __init__(self, setpoint_publish):# pointer "self" equal to pointer "this"
         self.setpoint_pub = setpoint_publish
         self.current_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
-            								SP.PoseStamped, self._local_position_callback)
+                                            SP.PoseStamped, self._local_position_callback)
         self.current = vector3()
-        self.msg = mavros.setpoint.PoseStamped(
-            									header=mavros.setpoint.Header(
-                								frame_id="att_pose",
-                								stamp=rospy.Time.now()),
-                							  )     
+        self.msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(
+                                                                                frame_id="att_pose",
+                								stamp=rospy.Time.now()),)     
         self.x = 0
         self.y = 0
         self.z = 0

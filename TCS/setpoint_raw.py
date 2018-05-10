@@ -56,9 +56,6 @@ current_position = TCS_util.vector3()
 # setpoint message. The type will be changed later in main()
 setpoint_msg = 0
 # setpoint position
-
-raw_setpoint_position = TCS_util.vector3()
-
 setpoint_position = TCS_util.vector3()
 
 set_velocity_raw  = TCS_util.vector4()
@@ -76,6 +73,9 @@ def set_target(setpoint_position, x, y, z):
     setpoint_position.x = x
     setpoint_position.y = y
     setpoint_position.z = z
+
+
+    pose.header=mavros.setpoint.Header(frame_id="local_setpoint_raw",stamp=rospy.Time.now())
 
 def update_msg(msg,vx,vy,vz,yaw):
     msg.header = mavros.setpoint.Header(frame_id=msg.header.frame_id,stamp=rospy.Time.now())

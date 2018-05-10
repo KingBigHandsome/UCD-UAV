@@ -29,6 +29,7 @@ import subprocess
 import os
 import sys
 import platform
+
 sys.path.append('/usr/local/lib/i386-linux-gnu/python2.7/site-packages/')
 
 
@@ -39,11 +40,14 @@ class vector3(object):
         self.y = 0.0
         self.z = 0.0
         self.is_init=False
-#class list(object):
-#    def __init__(self):
-#        self.channels = list(...)
 
-	# Called by default_offboard.py
+class vector4(object):
+    def __init__(self):
+        self.vx = 0.0
+        self.vy = 0.0
+        self.vz = 0.0
+        self.yaw = 0.0
+        self.is_init=False
 class update_setpoint(object):
     def __init__(self,rospy):
         self.update_flag='NEUTRAL'
@@ -51,17 +55,14 @@ class update_setpoint(object):
         self.timestamp=rospy.Time.now()
 
         # setup local position
-        self.local_last_pos=vector3()
+        self.local_last_pos=vector3()#Used to save the current local position!
         
         # setup local pub
-        # rospy.Publisher(mavros.get_topic('setpoint_position', 'local'), PoseStamped, **kvargs) 
-        # self.local_pub = mavros.setpoint.get_pub_position_local(queue_size=10)
         self.local_pub = rospy.Publisher(mavros.get_topic('setpoint_position', 'local'), 
-        								 geometry_msgs.msg.PoseStamped, 
-        								 queue_size=10)
+                                         geometry_msgs.msg.PoseStamped,
+                                         queue_size=10)
       
         # setup setpoint sub 
-        # Topic: /mavros/setpoint_position/local will be published in TASK_LOCAL_GOTO(Running in an isolated thread)
         self.local_sub = rospy.Subscriber(mavros.get_topic('setpoint_position', 'local'),
                                           geometry_msgs.msg.PoseStamped, 
                                           self._local_setpoint_cb)
@@ -70,11 +71,10 @@ class update_setpoint(object):
                                               geometry_msgs.msg.PoseStamped, 
                                               self._local_cb)
          
-        self.local_msg=mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id=self.frame_id,
-                																 stamp=rospy.Time.now()),)
+        self.local_msg=mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id=self.frame_id,stamp=rospy.Time.now()),)
 
 
-        # setup GPS position
+        # setup GPS position (Global Position setting is not available now!)
         self.global_last_pos=vector3();
         
         self.GPS_pub = rospy.Publisher(mavros.get_topic('setpoint_raw', 'global'),
@@ -84,13 +84,12 @@ class update_setpoint(object):
         self.GPS_sub = rospy.Subscriber(mavros.get_topic('setpoint_raw', 'global'),
                                         mavros_msgs.msg.GlobalPositionTarget, 
                                         self._global_setpoint_cb)
-        # Subscribe GPS_Data from px4                                
+
         position_GPS_sub = rospy.Subscriber(mavros.get_topic('global_position', 'global'),
-                                      		sensor_msgs.msg.NavSatFix, 
+                                            sensor_msgs.msg.NavSatFix,
                                             self._global_cb)
         
-        self.GPS_msg=mavros_msgs.msg.GlobalPositionTarget(header=mavros.setpoint.Header(frame_id=self.frame_id,
-                																		stamp=rospy.Time.now()),)
+        self.GPS_msg=mavros_msgs.msg.GlobalPositionTarget(header=mavros.setpoint.Header(frame_id=self.frame_id,stamp=rospy.Time.now()),)
 
     def _local_cb(self, topic):
  
@@ -110,7 +109,7 @@ class update_setpoint(object):
     def _local_setpoint_cb(self, topic):
     	# /mavros/setpoint_position/local will be published either in TASK_LOCAL_GOTO.py or TCS_util.py.
     	# It can be distinguished by the frame_id in the message! "local_pose" or "UPDATE_SETPOINT"
-   		# ignore the msgs sent by myself
+        # ignore the msgs sent by myself
         if (topic.header.frame_id == self.frame_id):
             return
         self.update_flag='LOCAL'
@@ -170,7 +169,7 @@ class update_setpoint(object):
    
         
         
-	# Called by default_offboard.py
+# Called by default_offboard.py
 class Task_manager(object):
     def __init__(self, fname):
     	#Open the specified file
@@ -182,16 +181,16 @@ class Task_manager(object):
         self.task_env = os.environ.copy()#config the environment variables
         self.timestamp=rospy.Time.now()
         
-		# extract the valid task name and storage them in the tasklist[]
+        # Extract the valid task name and storage them in the tasklist[]
         for eachline in self.tasklog:
-        	#e.g. line[0]=#TASK_HYBRID_GOTO line[1]=47.3978800 line[2]=8.5455920 line[3]=10 line[4]=5
+            #e.g. line[0]=#TASK_HYBRID_GOTO line[1]=47.3978800 line[2]=8.5455920 line[3]=10 line[4]=5
             line = eachline.strip('\n').split(' ')
             # python TASK.py [args] [timeout in second]
             if (eachline[0]=='#'):
                 continue
             self.tasklist.append(['python', str(line[0])+'.py', ' '.join(line[1:])])
             self.task_amount+=1
-        #close the specified file
+        #Close the specified file
         self.tasklog.close()
 
         # Setup task manager sub
@@ -211,14 +210,14 @@ class Task_manager(object):
         else:
             # error! Running task is not supposed to be this!
             pass
-    #This function will be called in the file default_offboard.py (main-while)
+    #This function will be called in default_offboard.py (main-while)
     def alldone(self):
         if ((self.task_index>=self.task_amount-1) and self.task_finish):
             #rospy.loginfo("All tasks have been done")
             return True
         else:
             return False
-    #This function will be called in the file default_offboard.py (main-while)
+    #This function will be called in default_offboard.py (main-while)
     def nexttask(self):
         if (self.alldone()):
             pass
@@ -229,7 +228,7 @@ class Task_manager(object):
         self.task_finish = False
         self.timestamp=rospy.Time.now()
         
-    #This function will be called in the file default_offboard.py (main-while)
+    #This function will be called in default_offboard.py (main-while)
     def task_finished(self):
         if (self.task_finish):
             return True
@@ -245,8 +244,7 @@ class Task_manager(object):
         return rospy.Duration(rospy.Time.now()-self.timestamp)
 
 
-
-	# Called by TASK.FILE  TASK_LOCAL_GOTO/TASK_SIMPLE_HOVER.py
+# Called by TASK.  TASK_LOCAL_GOTO/TASK_SIMPLE_HOVER.py
 class Task_watchdog(object):
     def __init__(self, task_name):
         self.task_name = task_name
@@ -266,12 +264,10 @@ class Task_watchdog(object):
         #self.task_msg.header.stamp = rospy.Time.now()
         #self.task_msg.task_elapsed = rospy.Duration(rospy.Time.now()-task_msg.task_init_time)
 
-
     def report_running(self):
         self.task_status = 'RUNNING'
         self._update()
         
-
     def report_finish(self):
         self.task_status = 'FINISH'
         self._update()

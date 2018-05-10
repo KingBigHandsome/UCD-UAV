@@ -30,8 +30,12 @@ import sys
 import signal
 import subprocess
 
-emergency_sw = 'Neutral'
+from tf.transformations import quaternion_from_euler
+target_position_x = 5
+target_position_y = 5
 
+emergency_sw = 'Neutral'
+yaw = math.atan(target_position_y/target_position_x)
 # signal.SIGINT stop the thread
 def signal_handler(signal, frame):
         print('You pressed Ctrl+C!')
@@ -74,7 +78,7 @@ def main():
     rate = rospy.Rate(20)
     mavros.set_namespace('/mavros')
     
-    #glwobal emergency_s
+    #global emergency_s
     
     # setup subscriber
     # /mavros/state
@@ -86,15 +90,15 @@ def main():
 
     while(not UAV_state.connected):
         rate.sleep()
-    set_mode(0,'STABILIZE')
-    set_arming(True)
-    #mavros.command.arming(True)
-
-
+    #set_mode(0,'STABILIZE')
+    #set_arming(True)
     rospy.loginfo("Pre start finished!")
 
+    q = quaternion_from_euler(10, 10, yaw)
+    print "The quaternion representation is %s %s %s %s." % (q[0], q[1], q[2], q[3])
+
     last_request = rospy.Time.now()
-    while(True):
+    while(False):
         if( UAV_state.mode != "GUIDED" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
             if( set_mode(0,'GUIDED')):
                 rospy.loginfo("'GUIDED' mode enabled")
