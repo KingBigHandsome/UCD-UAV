@@ -95,7 +95,8 @@ def main():
     rospy.loginfo("Pre start finished!")
 
     q = quaternion_from_euler(10, 10, yaw)
-    print "The quaternion representation is %s %s %s %s." % (q[0], q[1], q[2], q[3])
+    #print "The quaternion representation is %s %s %s %s." % (q[0], q[1], q[2], q[3])
+    print "The quaternion representation is %s." % (math.asin(0.866025))
 
     last_request = rospy.Time.now()
     while(False):

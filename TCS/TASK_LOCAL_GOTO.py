@@ -53,10 +53,7 @@ import TCS_util
 # Declare some global variables.
 # current position
 current_position = TCS_util.vector3()
-# setpoint message. The type will be changed later in main()
-setpoint_msg = 0
 # setpoint position
-
 raw_setpoint_position = TCS_util.vector3()
 
 setpoint_position = TCS_util.vector3()
@@ -65,17 +62,20 @@ set_velocity_raw  = TCS_util.vector4()
 
 # precision setup. normally set it to 0.5m
 precision = 0.5
+
+theta = 0.0
+target_velocity = 2.0
 # setup frame_id
 frame_id='local_setpoint_raw'
 
-def set_target(setpoint_position, x, y, z):
+def set_target(pose, x, y, z):
     """A wrapper assigning the x,y,z values
     to the pose. pose usually is type of
     mavros.setpoint.PoseStamped
     """
-    setpoint_position.x = x
-    setpoint_position.y = y
-    setpoint_position.z = z
+    pose.x = x
+    pose.y = y
+    pose.z = z
 
 def update_msg(msg,vx,vy,vz,yaw):
     msg.header = mavros.setpoint.Header(frame_id=msg.header.frame_id,stamp=rospy.Time.now())
@@ -129,7 +129,9 @@ def main():
                                              mavros_msgs.msg.PositionTarget,
                                              queue_size=10)
 
-    setpoint_msg = mavros_msgs.msg.PositionTarget
+    setpoint_msg = mavros.setpoint.PositionTarget(header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",
+                                                                                stamp=rospy.Time.now()),)
+
     #setpoint_msg.header.stamp = rospy.Time.now()
     #setpoint_msg.header.frame_id = "local_setpoint_raw"
 
@@ -160,7 +162,6 @@ def main():
     print "The Destination is : X = {}, y = {}, Z = {}".format(raw_setpoint_position.x,
                                                                raw_setpoint_position.y,
                                                                raw_setpoint_position.z)
-
     pre_flight = 'neutral'
     init_time = rospy.Time.now()
     # In this while loop, do the job.
@@ -170,14 +171,12 @@ def main():
     if (raw_setpoint_position.z - current_position.z >2):
         pre_flight = 'ascending'
         # ascending
-        set_target(setpoint_position,
-                   current_position.x,
-                   current_position.y,
-                   raw_setpoint_position.z)
+        set_target(setpoint_position,current_position.x,current_position.y,raw_setpoint_position.z)
+
         while(not is_reached(setpoint_position)):
             set_velocity_raw.vx =0.0
             set_velocity_raw.vy = 0.0
-            set_velocity_raw.vz = 0.2
+            set_velocity_raw.vz = 0.5
             set_velocity_raw.yaw = 0.0
             update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
             setpoint_raw_local_pub.publish(setpoint_msg)
@@ -188,19 +187,45 @@ def main():
         set_velocity_raw.vz = 0.0
         update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
         setpoint_raw_local_pub.publish(setpoint_msg)
+
         # flight to the target
-        set_target(setpoint_position,
-                   raw_setpoint_position.x,
-                   raw_setpoint_position.y,
-                   raw_setpoint_position.z)
+        set_target(setpoint_position,raw_setpoint_position.x,raw_setpoint_position.y,raw_setpoint_position.z)
         while(not is_reached(setpoint_position)):
-            if(raw_setpoint_position.x != current_position.x):
-                theta = math.atan((raw_setpoint_position.y-current_position.y)/(raw_setpoint_position.x-current_position.x))
-                degree = thera/3.1415926*180
-            set_velocity_raw.vx = 5*sin(degree)
-            set_velocity_raw.vy = 5*cos(degree)
+
+
+            m = current_position.x - setpoint_position.x
+            n = current_position.y - setpoint_position.y
+
+            q = math.sqrt(m * m + n * n)
+
+            if(setpoint_position.x != current_position.x):
+                if (m > 0 and n > 0):
+                    theta = math.asin(n/q)
+                    theta_yaw = theta + 1.5707963
+                    velocity_x = -(target_velocity * math.cos(theta))
+                    velocity_y = -(target_velocity * math.sin(theta))
+                elif (m < 0 and n > 0):
+                    theta = math.asin(n/q)
+                    theta_yaw = 4.7123889 - theta
+                    velocity_x = (target_velocity * math.cos(theta))
+                    velocity_y = -(target_velocity * math.sin(theta))
+                elif (m < 0 and n < 0):
+                    theta = math.asin(-n/q)
+                    theta_yaw = theta - 1.5707963
+                    velocity_x = (target_velocity * math.cos(theta))
+                    velocity_y = (target_velocity * math.sin(theta))
+                elif (m > 0 and n < 0):
+                    theta = math.asin(-n/q)
+                    theta_yaw = 1.5707963 -theta
+                    velocity_x = -(target_velocity * math.cos(theta))
+                    velocity_y =  (target_velocity * math.sin(theta))
+                else:
+                    theta = theta
+
+            set_velocity_raw.vx = velocity_x
+            set_velocity_raw.vy = velocity_y
             set_velocity_raw.vz = 0.0
-            set_velocity_raw.yaw = theta
+            set_velocity_raw.yaw = theta_yaw
             update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
             setpoint_raw_local_pub.publish(setpoint_msg)
             task_watchdog.report_running()
@@ -211,18 +236,42 @@ def main():
     elif (current_position.z - raw_setpoint_position.z >2):
         pre_flight = 'descending'
         # flight to the target first
-        set_target(setpoint_position,
-                   raw_setpoint_position.x,
-                   raw_setpoint_position.y,
-                   current_position.z)
+        set_target(setpoint_position,raw_setpoint_position.x,raw_setpoint_position.y,current_position.z)
+
         while(not is_reached(setpoint_position)):
-            if(raw_setpoint_position.x != current_position.x):
-                theta = math.atan((raw_setpoint_position.y-current_position.y)/(raw_setpoint_position.x-current_position.x))
-                degree = thera/3.1415926*180
-            set_velocity_raw.vx = 5*sin(degree)
-            set_velocity_raw.vy = 5*cos(degree)
+            m = current_position.x - setpoint_position.x
+            n = current_position.y - setpoint_position.y
+
+            q = math.sqrt(m * m + n * n)
+
+            if(setpoint_position.x != current_position.x):
+                if (m > 0 and n > 0):
+                    theta = math.asin(n/q)
+                    theta_yaw = theta + 1.5707963
+                    velocity_x = -(target_velocity * math.cos(theta))
+                    velocity_y = -(target_velocity * math.sin(theta))
+                elif (m < 0 and n > 0):
+                    theta = math.asin(n/q)
+                    theta_yaw = 4.7123889 - theta
+                    velocity_x = (target_velocity * math.cos(theta))
+                    velocity_y = -(target_velocity * math.sin(theta))
+                elif (m < 0 and n < 0):
+                    theta = math.asin(-n/q)
+                    theta_yaw = theta - 1.5707963
+                    velocity_x = (target_velocity * math.cos(theta))
+                    velocity_y = (target_velocity * math.sin(theta))
+                elif (m > 0 and n < 0):
+                    theta = math.asin(-n/q)
+                    theta_yaw = 1.5707963 -theta
+                    velocity_x = -(target_velocity * math.cos(theta))
+                    velocity_y =  (target_velocity * math.sin(theta))
+                else:
+                    theta = theta
+
+            set_velocity_raw.vx = velocity_x
+            set_velocity_raw.vy = velocity_y
             set_velocity_raw.vz = 0.0
-            set_velocity_raw.yaw = theta
+            set_velocity_raw.yaw = theta_yaw
             update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
             setpoint_raw_local_pub.publish(setpoint_msg)
             task_watchdog.report_running()
@@ -233,15 +282,15 @@ def main():
         set_velocity_raw.vy = 0.0
         set_velocity_raw.vz = 0.0
         update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+        setpoint_raw_local_pub.publish(setpoint_msg)
+
         # descending
-        set_target(setpoint_position,
-                   raw_setpoint_position.x,
-                   raw_setpoint_position.y,
-                   raw_setpoint_position.z)
+        set_target(setpoint_position,raw_setpoint_position.x,raw_setpoint_position.y,raw_setpoint_position.z)
+
         while(not is_reached(setpoint_position)):
             set_velocity_raw.vx =0.0
             set_velocity_raw.vy = 0.0
-            set_velocity_raw.vz = -0.2
+            set_velocity_raw.vz = -0.5
             set_velocity_raw.yaw = 0.0
             update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
             setpoint_raw_local_pub.publish(setpoint_msg)
@@ -250,31 +299,60 @@ def main():
                 break
             rate.sleep()
 
-
     else:
-        set_target(setpoint_position,
-                   raw_setpoint_position.x,
-                   raw_setpoint_position.y,
-                   raw_setpoint_position.z)
+        # flight to destination directly.
+        set_target(setpoint_position,raw_setpoint_position.x,raw_setpoint_position.y,raw_setpoint_position.z)
+
         while(not is_reached(setpoint_position)):
-            if(raw_setpoint_position.x != current_position.x):
-                theta = math.atan((raw_setpoint_position.y-current_position.y)/(raw_setpoint_position.x-current_position.x))
-                degree = thera/3.1415926*180
-            set_velocity_raw.vx = 5*sin(degree)
-            set_velocity_raw.vy = 5*cos(degree)
+
+            m = current_position.x - setpoint_position.x
+            n = current_position.y - setpoint_position.y
+
+            q = math.sqrt(m * m + n * n)
+
+            if(setpoint_position.x != current_position.x):
+                if (m > 0 and n > 0):
+                    theta = math.asin(n/q)
+                    theta_yaw = theta + 1.5707963
+                    velocity_x = -(target_velocity * math.cos(theta))
+                    velocity_y = -(target_velocity * math.sin(theta))
+                elif (m < 0 and n > 0):
+                    theta = math.asin(n/q)
+                    theta_yaw = 4.7123889 - theta
+                    velocity_x = (target_velocity * math.cos(theta))
+                    velocity_y = -(target_velocity * math.sin(theta))
+                elif (m < 0 and n < 0):
+                    theta = math.asin(-n/q)
+                    theta_yaw = theta - 1.5707963
+                    velocity_x = (target_velocity * math.cos(theta))
+                    velocity_y = (target_velocity * math.sin(theta))
+                elif (m > 0 and n < 0):
+                    theta = math.asin(-n/q)
+                    theta_yaw = 1.5707963 -theta
+                    velocity_x = -(target_velocity * math.cos(theta))
+                    velocity_y =  (target_velocity * math.sin(theta))
+                else:
+                    theta = theta
+
+            set_velocity_raw.vx = velocity_x
+            set_velocity_raw.vy = velocity_y
             set_velocity_raw.vz = 0.0
-            set_velocity_raw.yaw = theta
+            set_velocity_raw.yaw = theta_yaw
             update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
             setpoint_raw_local_pub.publish(setpoint_msg)
             task_watchdog.report_running()
             if (is_overtime(init_time, over_time)):
                 break
             rate.sleep()
+
+
     set_velocity_raw.vx = 0.0
     set_velocity_raw.vy = 0.0
     set_velocity_raw.vz = 0.0
+    set_velocity_raw.yaw = 0.0
     update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
-
+    setpoint_raw_local_pub.publish(setpoint_msg)
+    theta = 0.0
     #Publish the task status as FINISH
     task_watchdog.report_finish()
 
