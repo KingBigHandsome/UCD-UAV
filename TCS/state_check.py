@@ -43,7 +43,7 @@ def signal_handler(signal, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 UAV_state = mavros_msgs.msg.State() 
-rc_out_channels = []
+rc_in_channels = []
 
 # Definitions of various callback functions
 def _state_callback(topic):
@@ -51,39 +51,34 @@ def _state_callback(topic):
     UAV_state.connected = topic.connected
     UAV_state.mode = topic.mode
     UAV_state.guided = topic.guided
-def _rc_out_callback(topic):
+def _rc_in_callback(topic):
 
-    rc_out_channels = topic.channels
+    rc_in_channels = topic.channels
    
     global emergency_sw
     
-    rospy.loginfo("The output of switch B is {}".format(rc_out_channels[5]))        
+    rospy.loginfo("The output of switch B is {}".format(rc_in_channels[5]))        
     #print "The output of switch B is ", rc_out_channels[5]
     
-    if (rc_out_channels[5] <= 1250):
+    if (rc_in_channels[5] <= 1250):
         emergency_sw = 'Up'
         rospy.loginfo("emergency_sw is {}".format(emergency_sw))
-    elif (rc_out_channels[5] > 1250 and rc_out_channels[5] < 1750):
+    elif (rc_in_channels[5] > 1250 and rc_in_channels[5] < 1750):
         emergency_sw = 'Neutral'
         rospy.loginfo("emergency_sw is {}".format(emergency_sw))
     else:
         emergency_sw = 'Down'
         rospy.loginfo("emergency_sw is {}".format(emergency_sw))
 
-
-
-
 def main():
     rospy.init_node('state_check', anonymous=True)
     rate = rospy.Rate(20)
     mavros.set_namespace('/mavros')
     
-    #global emergency_s
-    
     # setup subscriber
     # /mavros/state
     state_sub = rospy.Subscriber(mavros.get_topic('state'),mavros_msgs.msg.State, _state_callback)
-    rc_out    = rospy.Subscriber(mavros.get_topic('rc','out'),mavros_msgs.msg.RCOut, _rc_out_callback)
+    rc_in     = rospy.Subscriber(mavros.get_topic('rc','in'),mavros_msgs.msg.RCIn, _rc_in_callback)
 
     set_arming = rospy.ServiceProxy('/mavros/cmd/arming', mavros_msgs.srv.CommandBool)
     set_mode   = rospy.ServiceProxy('/mavros/set_mode', mavros_msgs.srv.SetMode)
@@ -101,7 +96,7 @@ def main():
     print "The euler representation is %s %s %s." % (p[0],p[1],p[2])
 
     last_request = rospy.Time.now()
-    while(False):
+    while(True):
         if( UAV_state.mode != "GUIDED" and (rospy.Time.now() - last_request > rospy.Duration(5.0))):
             if( set_mode(0,'GUIDED')):
                 rospy.loginfo("'GUIDED' mode enabled")

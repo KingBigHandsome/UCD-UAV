@@ -57,13 +57,13 @@ def _state_callback(topic):
     UAV_state.mode = topic.mode
     UAV_state.guided = topic.guided
 
-def _rc_out_callback(topic):
-    """RCOUT subscriber callback function Topic: /mavros/rc/out
+def _rc_in_callback(topic):
+    """RCIN subscriber callback function Topic: /mavros/rc/in
     """
     global emergency_sw
-    rc_out_channels = topic.channels
+    rc_in_channels = topic.channels
 
-    if (rc_out_channels[5] <= 1750):
+    if (rc_in_channels[5] <= 1750):
         emergency_sw = True
         #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
     else:
@@ -96,7 +96,7 @@ def main():
 
     # setup subscriber
     state_sub = rospy.Subscriber(mavros.get_topic('state'),mavros_msgs.msg.State, _state_callback)
-    rc_out    = rospy.Subscriber(mavros.get_topic('rc','out'),mavros_msgs.msg.RCOut, _rc_out_callback)
+    rc_in     = rospy.Subscriber(mavros.get_topic('rc','in'),mavros_msgs.msg.RCIn, _rc_in_callback)
     position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
                                           geometry_msgs.msg.PoseStamped,
                                           local_position_cb)
