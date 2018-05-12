@@ -51,41 +51,45 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 import TCS_util
 
 # Declare some global variables.
-# current position
-
+# current position Position and Orientation
 current_position = TCS_util.vector7()
 # setpoint position
-raw_setpoint_position = TCS_util.vector3()
+destination = TCS_util.vector3()
 
 setpoint_position = TCS_util.vector3()
 
-set_velocity_raw  = TCS_util.vector4()
+setpoint_raw_local  = TCS_util.vector4()
 
 # precision setup. normally set it to 0.5m
 precision = 0.1
-# setup frame_id
+pi = 3.1415926
 frame_id='local_setpoint_raw'
 
 def set_target(pose, x, y, z):
     """A wrapper assigning the x,y,z values
     to the pose. pose usually is type of
-    mavros.setpoint.PoseStamped
+    geometry_msgs/PoseStamped.msg
     """
     pose.x = x
     pose.y = y
     pose.z = z
 
 def update_msg(msg,vx,vy,vz,yaw):
+    """A wrapper assigning the x,y,z values
+    to the pose. pose usually is type of
+    mavros_msgs/PositionTarget.msg
+    """
     msg.header = mavros.setpoint.Header(frame_id=msg.header.frame_id,stamp=rospy.Time.now())
-    msg.coordinate_frame = 1
-    msg.type_mask = 967
-    msg.position.x = 0.0
+    msg.coordinate_frame = 1 # FRAME_LOCAL_NED = 1 Nort-Pitch East-Roll Down
+    msg.type_mask = 967      # IGNORE_PX/PY/PZ IGNORE_AFX/AFY/AFZ FORCE 1+2+4+64+128+256+512
+    msg.position.x = 0.0     # In this case,position.x/y/z were invalid by setting 'type_mask'
     msg.position.y = 0.0
     msg.position.z = 0.0
     msg.velocity.x = vx
     msg.velocity.y = vy
     msg.velocity.z = vz
-    msg.yaw = yaw
+    msg.yaw = yaw            # when yaw is 0, the drone towards to North
+                             # the drone rotates clockwisely as the value increases.
 
 def local_position_cb(topic):
     """local position subscriber callback function Topic: /mavros/local_position/pose
@@ -111,18 +115,17 @@ def is_reached(setpoint):
         return False
 
 def is_overtime(timestamp, overtime):
-
+    """Check if the UAV reached the destination with in the set time
+       if not, it will set mode to 'RTL'
+    """
     if ((rospy.Time.now() - timestamp) > rospy.Duration(overtime)):
-
         print "Flight attempt over time!"
-
         return True
     else:
         return False
 
-
 def main():
-    # print "TASK: "+str(sys.argv)
+
     # setup rospy env
     rospy.init_node('TCS_task', anonymous=True)
     rate = rospy.Rate(20)
@@ -132,8 +135,8 @@ def main():
     velocity_x = 0.0
     velocity_y = 0.0
     velocity_z = 0.0
-    target_velocity = 2.0
-
+    target_velocity = 2.0 # customized flight speed
+    buffer_distance = 5.0 # the distance that the drone will slown down when it approaches the target position
     # setup setpoint_raw_local_pub
     setpoint_raw_local_pub = rospy.Publisher(mavros.get_topic('setpoint_raw', 'local'),
                                              mavros_msgs.msg.PositionTarget,
@@ -141,8 +144,7 @@ def main():
 
     setpoint_msg = mavros.setpoint.PositionTarget(header=mavros.setpoint.Header(frame_id="local_setpoint_raw",
                                                                                 stamp=rospy.Time.now()),)
-
-
+    # setup service
     set_mode    = rospy.ServiceProxy('/mavros/set_mode', mavros_msgs.srv.SetMode)
 
     # setup position_local_sub
@@ -160,9 +162,9 @@ def main():
     # str(sys.argv) : The arguments are ['name of the script','arg1','arg2'...]
     # spilt into list use " "e.g.setpoint[0]=5 setpoint[1]=0 setpoint[2]=5 setpoint[3]=20
     setpoint_arg = sys.argv[1].split(' ')
-    raw_setpoint_position.x=float(setpoint_arg[0])
-    raw_setpoint_position.y=float(setpoint_arg[1])
-    raw_setpoint_position.z=float(setpoint_arg[2])
+    destination.x=float(setpoint_arg[0])
+    destination.y=float(setpoint_arg[1])
+    destination.z=float(setpoint_arg[2])
     over_time = float(setpoint_arg[3])
 
     pre_flight = 'neutral'
@@ -172,40 +174,48 @@ def main():
     while(current_position.is_init is False):
         continue
 
+    # When the current_position is available, calculate the current yaw value
     quaternion = (current_position.ox,current_position.oy,current_position.oz,current_position.ow)
     euler = euler_from_quaternion(quaternion,axes="sxyz")
-    theta_yaw = euler[2] - 1.5707963
+    theta_yaw = euler[2] - pi/2.0
 
-    if (raw_setpoint_position.z - current_position.pz >2):
+    # Firstly ascending to the target altitude and then flight to the destination
+    if (destination.z - current_position.pz >2):
         pre_flight = 'ascending'
+
         # ascending
-        set_target(setpoint_position,current_position.px,current_position.py,raw_setpoint_position.z)
+        set_target(setpoint_position,current_position.px,current_position.py,destination.z)
 
         while(not is_reached(setpoint_position)):
 
-            m = current_position.px - setpoint_position.x
-            n = current_position.py - setpoint_position.y
-            p = current_position.pz - setpoint_position.z
+            m = current_position.px - setpoint_position.x  # Delat_x
+            n = current_position.py - setpoint_position.y  # Delat_y
+            p = current_position.pz - setpoint_position.z  # Delat_z
             q = math.sqrt(m * m + n * n)
 
-            if (not(m == 0 and n == 0)):
+            # during ascending, dynamically adjust its positon with a constant yaw
+            if (not(m == 0 and n == 0)): # in case of denominator equal to zero
 
-                if (m > 0 and n > 0):
+                if (m > 0 and n > 0): # The current position is in the upper-right conner of the target position
+
                     theta = math.asin(n/q)
 
                     velocity_x = -(0.05 * math.cos(theta))
                     velocity_y = -(0.05 * math.sin(theta))
-                elif (m < 0 and n > 0):
+                elif (m < 0 and n > 0): # upper-left conner
+
                     theta = math.asin(n/q)
 
                     velocity_x = (0.05 * math.cos(theta))
                     velocity_y = -(0.05 * math.sin(theta))
-                elif (m < 0 and n < 0):
+                elif (m < 0 and n < 0): # lower-left conner
+
                     theta = math.asin(-n/q)
 
                     velocity_x = (0.05 * math.cos(theta))
                     velocity_y = (0.05 * math.sin(theta))
-                elif (m > 0 and n < 0):
+                elif (m > 0 and n < 0): # lower-right conner
+
                     theta = math.asin(-n/q)
 
                     velocity_x = -(0.05 * math.cos(theta))
@@ -213,26 +223,33 @@ def main():
                 else:
                     theta = theta
 
-            set_velocity_raw.vx = velocity_x
-            set_velocity_raw.vy = velocity_y
-            set_velocity_raw.vz = 0.5
-            set_velocity_raw.yaw = theta_yaw
-            update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+            setpoint_raw_local.vx = velocity_x
+            setpoint_raw_local.vy = velocity_y
+            setpoint_raw_local.vz = 0.5 # customized ascending speed
+            setpoint_raw_local.yaw = theta_yaw
+
+            update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
+
             setpoint_raw_local_pub.publish(setpoint_msg)
+
             task_watchdog.report_running()
+
             if (is_overtime(init_time, over_time)):
                 set_mode(0,'RTL')
                 break
             rate.sleep()
 
-        set_velocity_raw.vx = 0.0
-        set_velocity_raw.vy = 0.0
-        set_velocity_raw.vz = 0.0
-        update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+        setpoint_raw_local.vx = 0.0
+        setpoint_raw_local.vy = 0.0
+        setpoint_raw_local.vz = 0.0
+
+        update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
+
         setpoint_raw_local_pub.publish(setpoint_msg)
 
         # flight to the target
-        set_target(setpoint_position,raw_setpoint_position.x,raw_setpoint_position.y,raw_setpoint_position.z)
+        set_target(setpoint_position,destination.x,destination.y,destination.z)
+
         while(not is_reached(setpoint_position)):
 
             m = current_position.px - setpoint_position.x
@@ -242,11 +259,13 @@ def main():
 
             if (not(m == 0 and n == 0)):
 
-                if (abs(m)<5.0 and abs(n)<5.0):
-                    velocity = q/5.0*target_velocity
+                # slow down when distance to the target position within certain meters
+                if (q < buffer_distance):
+                    velocity = q/buffer_distance*target_velocity # the closer the distance, the lower the speed
                 else:
                     velocity = target_velocity
 
+                # automatically adjust altitude
                 if (p >= 0.05):
                     velocity_z = -0.1
                 elif (p<= -0.05):
@@ -256,43 +275,49 @@ def main():
 
                 if (m > 0 and n > 0):
                     theta = math.asin(n/q)
-                    theta_yaw = theta + 1.5707963
+                    theta_yaw = theta + pi/2.0
                     velocity_x = -(velocity * math.cos(theta))
                     velocity_y = -(velocity * math.sin(theta))
                 elif (m < 0 and n > 0):
                     theta = math.asin(n/q)
-                    theta_yaw = 4.7123889 - theta
+                    theta_yaw = 1.5*pi - theta
                     velocity_x = (velocity * math.cos(theta))
                     velocity_y = -(velocity * math.sin(theta))
                 elif (m < 0 and n < 0):
                     theta = math.asin(-n/q)
-                    theta_yaw = theta - 1.5707963
+                    theta_yaw = theta - pi/2.0
                     velocity_x = (velocity * math.cos(theta))
                     velocity_y = (velocity * math.sin(theta))
                 elif (m > 0 and n < 0):
                     theta = math.asin(-n/q)
-                    theta_yaw = 1.5707963 -theta
+                    theta_yaw = pi/2.0 -theta
                     velocity_x = -(velocity * math.cos(theta))
                     velocity_y =  (velocity * math.sin(theta))
                 else:
                     theta = theta
 
-            set_velocity_raw.vx = velocity_x
-            set_velocity_raw.vy = velocity_y
-            set_velocity_raw.vz = velocity_z
-            set_velocity_raw.yaw = theta_yaw
-            update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+            setpoint_raw_local.vx = velocity_x
+            setpoint_raw_local.vy = velocity_y
+            setpoint_raw_local.vz = velocity_z
+            setpoint_raw_local.yaw = theta_yaw
+
+            update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
+
             setpoint_raw_local_pub.publish(setpoint_msg)
+
             task_watchdog.report_running()
+
             if (is_overtime(init_time, over_time)):
                 set_mode(0,'RTL')
                 break
             rate.sleep()
 
-    elif (current_position.pz - raw_setpoint_position.z >2):
+    # Firstly flight to the destination holding the current altitude and the descend to the target altitude
+    elif (current_position.pz - destination.z >2):
         pre_flight = 'descending'
         # flight to the target first
-        set_target(setpoint_position,raw_setpoint_position.x,raw_setpoint_position.y,current_position.pz)
+        set_target(setpoint_position,destination.x,destination.y,current_position.pz)
+
         while(not is_reached(setpoint_position)):
 
             m = current_position.px - setpoint_position.x
@@ -302,11 +327,13 @@ def main():
 
             if (not(m == 0 and n == 0)):
 
-                if (abs(m)<5.0 and abs(n)<5.0):
+                # slow down when distance to the target position within certain meters
+                if (q < 5.0):
                     velocity = q/5.0*target_velocity
                 else:
                     velocity = target_velocity
 
+                 # automatically adjust altitude
                 if (p >= 0.05):
                     velocity_z = -0.1
                 elif (p<= -0.05):
@@ -316,71 +343,84 @@ def main():
 
                 if (m > 0 and n > 0):
                     theta = math.asin(n/q)
-                    theta_yaw = theta + 1.5707963
+                    theta_yaw = theta + pi/2.0
                     velocity_x = -(velocity * math.cos(theta))
                     velocity_y = -(velocity * math.sin(theta))
                 elif (m < 0 and n > 0):
                     theta = math.asin(n/q)
-                    theta_yaw = 4.7123889 - theta
+                    theta_yaw = 1.5*pi - theta
                     velocity_x = (velocity * math.cos(theta))
                     velocity_y = -(velocity * math.sin(theta))
                 elif (m < 0 and n < 0):
                     theta = math.asin(-n/q)
-                    theta_yaw = theta - 1.5707963
+                    theta_yaw = theta - pi/2.0
                     velocity_x = (velocity * math.cos(theta))
                     velocity_y = (velocity * math.sin(theta))
                 elif (m > 0 and n < 0):
                     theta = math.asin(-n/q)
-                    theta_yaw = 1.5707963 -theta
+                    theta_yaw = pi/2.0 -theta
                     velocity_x = -(velocity * math.cos(theta))
                     velocity_y =  (velocity * math.sin(theta))
                 else:
                     theta = theta
 
-            set_velocity_raw.vx = velocity_x
-            set_velocity_raw.vy = velocity_y
-            set_velocity_raw.vz = velocity_z
-            set_velocity_raw.yaw = theta_yaw
-            update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+            setpoint_raw_local.vx = velocity_x
+            setpoint_raw_local.vy = velocity_y
+            setpoint_raw_local.vz = velocity_z
+            setpoint_raw_local.yaw = theta_yaw
+
+
+            update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
+
             setpoint_raw_local_pub.publish(setpoint_msg)
+
             task_watchdog.report_running()
+
             if (is_overtime(init_time, over_time)):
                 set_mode(0,'RTL')
                 break
             rate.sleep()
 
-        set_velocity_raw.vx = 0.0
-        set_velocity_raw.vy = 0.0
-        set_velocity_raw.vz = 0.0
-        update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+        setpoint_raw_local.vx = 0.0
+        setpoint_raw_local.vy = 0.0
+        setpoint_raw_local.vz = 0.0
+
+        update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
+
         setpoint_raw_local_pub.publish(setpoint_msg)
 
         # then descending
-        set_target(setpoint_position,raw_setpoint_position.x,raw_setpoint_position.y,raw_setpoint_position.z)
+        set_target(setpoint_position,destination.x,destination.y,destination.z)
+
         while(not is_reached(setpoint_position)):
-            m = current_position.px - setpoint_position.x
-            n = current_position.py - setpoint_position.y
-            p = current_position.pz - setpoint_position.z
+
+            m = current_position.px - setpoint_position.x  # Delat_x
+            n = current_position.py - setpoint_position.y  # Delat_y
+            p = current_position.pz - setpoint_position.z  # Delat_z
             q = math.sqrt(m * m + n * n)
 
-            if (not(m == 0 and n == 0)):
+            if (not(m == 0 and n == 0)): # in case of denominator equal to zero
 
-                if (m > 0 and n > 0):
+                if (m > 0 and n > 0): # The current position is in the upper-right conner of the target position
+
                     theta = math.asin(n/q)
 
                     velocity_x = -(0.05 * math.cos(theta))
                     velocity_y = -(0.05 * math.sin(theta))
-                elif (m < 0 and n > 0):
+                elif (m < 0 and n > 0): # upper-left conner
+
                     theta = math.asin(n/q)
 
                     velocity_x = (0.05 * math.cos(theta))
                     velocity_y = -(0.05 * math.sin(theta))
-                elif (m < 0 and n < 0):
+                elif (m < 0 and n < 0): # lower-left conner
+
                     theta = math.asin(-n/q)
 
                     velocity_x = (0.05 * math.cos(theta))
                     velocity_y = (0.05 * math.sin(theta))
-                elif (m > 0 and n < 0):
+                elif (m > 0 and n < 0): # lower-right conner
+
                     theta = math.asin(-n/q)
 
                     velocity_x = -(0.05 * math.cos(theta))
@@ -388,21 +428,27 @@ def main():
                 else:
                     theta = theta
 
-            set_velocity_raw.vx = velocity_x
-            set_velocity_raw.vy = velocity_y
-            set_velocity_raw.vz = -0.5
-            set_velocity_raw.yaw = theta_yaw
-            update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+            setpoint_raw_local.vx = velocity_x
+            setpoint_raw_local.vy = velocity_y
+            setpoint_raw_local.vz = -0.5 #customized descending speed
+            setpoint_raw_local.yaw = theta_yaw
+
+            update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
+
             setpoint_raw_local_pub.publish(setpoint_msg)
+
             task_watchdog.report_running()
+
             if (is_overtime(init_time, over_time)):
                 set_mode(0,'RTL')
                 break
             rate.sleep()
 
+    # Flight to destination directly.
     else:
-        # flight to destination directly.
-        set_target(setpoint_position,raw_setpoint_position.x,raw_setpoint_position.y,raw_setpoint_position.z)
+
+        set_target(setpoint_position,destination.x,destination.y,destination.z)
+
         while(not is_reached(setpoint_position)):
 
             m = current_position.px - setpoint_position.x
@@ -412,11 +458,13 @@ def main():
 
             if (not(m == 0 and n == 0)):
 
-                if (abs(m)<5.0 and abs(n)<5.0):
+                # slow down when distance to the target position within certain meters
+                if (q < 5.0):
                     velocity = q/5.0*target_velocity
                 else:
                     velocity = target_velocity
 
+                 # automatically adjust altitude
                 if (p >= 0.05):
                     velocity_z = -0.1
                 elif (p<= -0.05):
@@ -426,51 +474,57 @@ def main():
 
                 if (m > 0 and n > 0):
                     theta = math.asin(n/q)
-                    theta_yaw = theta + 1.5707963
+                    theta_yaw = theta + pi/2.0
                     velocity_x = -(velocity * math.cos(theta))
                     velocity_y = -(velocity * math.sin(theta))
                 elif (m < 0 and n > 0):
                     theta = math.asin(n/q)
-                    theta_yaw = 4.7123889 - theta
+                    theta_yaw = 1.5*pi - theta
                     velocity_x = (velocity * math.cos(theta))
                     velocity_y = -(velocity * math.sin(theta))
                 elif (m < 0 and n < 0):
                     theta = math.asin(-n/q)
-                    theta_yaw = theta - 1.5707963
+                    theta_yaw = theta - pi/2.0
                     velocity_x = (velocity * math.cos(theta))
                     velocity_y = (velocity * math.sin(theta))
                 elif (m > 0 and n < 0):
                     theta = math.asin(-n/q)
-                    theta_yaw = 1.5707963 -theta
+                    theta_yaw = pi/2.0 -theta
                     velocity_x = -(velocity * math.cos(theta))
                     velocity_y =  (velocity * math.sin(theta))
                 else:
                     theta = theta
 
-            set_velocity_raw.vx = velocity_x
-            set_velocity_raw.vy = velocity_y
-            set_velocity_raw.vz = velocity_z
-            set_velocity_raw.yaw = theta_yaw
-            update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+            setpoint_raw_local.vx = velocity_x
+            setpoint_raw_local.vy = velocity_y
+            setpoint_raw_local.vz = velocity_z
+            setpoint_raw_local.yaw = theta_yaw
+
+            update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
+
             setpoint_raw_local_pub.publish(setpoint_msg)
+
             task_watchdog.report_running()
+
             if (is_overtime(init_time, over_time)):
                 set_mode(0,'RTL')
                 break
             rate.sleep()
 
+    # Arrived at the destination successfully, holding its position
+    setpoint_raw_local.vx = 0.0
+    setpoint_raw_local.vy = 0.0
+    setpoint_raw_local.vz = 0.0
+    setpoint_raw_local.yaw = theta_yaw
 
-    set_velocity_raw.vx = 0.0
-    set_velocity_raw.vy = 0.0
-    set_velocity_raw.vz = 0.0
-    set_velocity_raw.yaw = theta_yaw
-    update_msg(setpoint_msg,set_velocity_raw.vx,set_velocity_raw.vy,set_velocity_raw.vz,set_velocity_raw.yaw)
+    update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
+
     setpoint_raw_local_pub.publish(setpoint_msg)
+
     #Publish the task status as FINISH
     task_watchdog.report_finish()
 
     return 0
-
 
 if __name__ == '__main__':
     main()

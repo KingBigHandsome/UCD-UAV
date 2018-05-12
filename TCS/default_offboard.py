@@ -25,7 +25,7 @@ import time
 from datetime import datetime
 from UAV_Task import *
 import TCS_util
-# import utilities
+
 import thread
 import math
 import sys
@@ -58,7 +58,8 @@ def _state_callback(topic):
     UAV_state.guided = topic.guided
 
 def _rc_out_callback(topic):
-
+    """RCOUT subscriber callback function Topic: /mavros/rc/out
+    """
     global emergency_sw
     rc_out_channels = topic.channels
 
@@ -116,25 +117,32 @@ def main():
     while(not UAV_state.connected):
         #rospy.loginfo("Waiting for vaild connection!")
         rate.sleep()
+
     while(UAV_state.mode != "GUIDED"):
         set_mode(0,'GUIDED')
-        #rospy.loginfo("Please set mode to 'GUIDED'!")
+        #rospy.loginfo("Please set mode to S'GUIDED'!")
         rate.sleep()
+
     while(not UAV_state.armed):
         set_arming(True)
         #rospy.loginfo("Please arm!")
         rate.sleep()
+    # Set the current GPS position as home_position, otherwise, it is aviailable to set it by customized lat/lng/alt
     while(not set_home(True,0.0,0.0,0.0)):
         #rospy.loginfo("Please set_home!")
         rate.sleep()
+
+    # Takeoff to specified altitude
     while(not set_takeoff(0.0,0.0,0.0,0.0,takeoff_altitude)):
         #rospy.loginfo("Please set_takeoff!")
         rate.sleep()
+
     while(not is_reached()):
         #rospy.loginfo("Waiting for takeoff to be done...")
         rate.sleep()
 
-    time.sleep(5);#Delay for 5 seconds
+    #Delay for 5 seconds after takeoff, and then, start to execute tasks.
+    time.sleep(10)
 
     last_request = rospy.Time.now()
 
