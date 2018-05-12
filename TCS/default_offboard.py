@@ -44,7 +44,7 @@ UAV_state = mavros_msgs.msg.State()
 
 current_position = TCS_util.vector3()
 
-precision = 0.5
+precision = 0.1
 
 takeoff_altitude = 7.5
 
@@ -142,15 +142,6 @@ def main():
     while(True):
 
         if(emergency_sw):
-
-            if( UAV_state.mode != "GUIDED" and (rospy.Time.now() - last_request > rospy.Duration(1.0))):
-                if( set_mode(0,'GUIDED')):
-                    rospy.loginfo("'GUIDED' mode enabled")
-                    last_request = rospy.Time.now()
-            if( not UAV_state.armed and (rospy.Time.now() - last_request > rospy.Duration(1.0))):
-                if(mavros.command.arming(True)):
-                    rospy.loginfo("Vehicle armed")
-                    last_request = rospy.Time.now()
 
             if( UAV_state.mode == "GUIDED" and UAV_state.armed is True):
 

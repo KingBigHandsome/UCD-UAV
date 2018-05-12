@@ -30,7 +30,7 @@ import sys
 import signal
 import subprocess
 
-from tf.transformations import quaternion_from_euler
+from tf.transformations import quaternion_from_euler,euler_from_quaternion
 target_position_x = 5
 target_position_y = 5
 
@@ -94,9 +94,11 @@ def main():
     #set_arming(True)
     rospy.loginfo("Pre start finished!")
 
-    q = quaternion_from_euler(10, 10, yaw)
-    #print "The quaternion representation is %s %s %s %s." % (q[0], q[1], q[2], q[3])
-    print "The quaternion representation is %s." % (math.asin(0.866025))
+    q = quaternion_from_euler(0, 0, 1.5707,axes="sxyz")
+    #q = (0.0,0.0,0.707072723701,0.707140837031)
+    p = euler_from_quaternion(q,axes="sxyz")
+    print "The quaternion representation is %s %s %s %s." % (q[0], q[1], q[2], q[3])
+    print "The euler representation is %s %s %s." % (p[0],p[1],p[2])
 
     last_request = rospy.Time.now()
     while(False):

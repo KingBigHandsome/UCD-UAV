@@ -40,13 +40,24 @@ class vector3(object):
         self.y = 0.0
         self.z = 0.0
         self.is_init=False
-
+# For topic: /mavro/setpoint_raw/local
 class vector4(object):
     def __init__(self):
         self.vx = 0.0
         self.vy = 0.0
         self.vz = 0.0
         self.yaw = 0.0
+        self.is_init=False
+ # For topic: /mavros/sepoint_position/local
+class vector7(object):
+    def __init__(self):
+        self.px = 0.0
+        self.py = 0.0
+        self.pz = 0.0
+        self.ox = 0.0
+        self.oy = 0.0
+        self.oz = 0.0
+        self.ow = 0.0
         self.is_init=False
 class update_setpoint(object):
     def __init__(self,rospy):

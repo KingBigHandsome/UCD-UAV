@@ -45,36 +45,31 @@ import geometry_msgs
 import nav_msgs.msg
 import time
 from datetime import datetime
-
 import TCS_util
+from tf.transformations import quaternion_from_euler,euler_from_quaternion
 
-
-
-# Declare some global variables.
 # current position
-current_position = TCS_util.vector3()
+current_position = TCS_util.vector7()
 # setpoint message. The type will be changed later in main()
-setpoint_msg = 0
+# setpoint_msg = 0
 # setpoint position
-setpoint_position = TCS_util.vector3()
-# precision setup. normally set it to 0.5m
-precision = 0.5
+setpoint_position = TCS_util.vector7()
 # setup frame_id
 frame_id='SIMPLE_HOVER'
 
-def set_target(pose, x, y, z):
+def set_target(pose, px, py, pz,ox,oy,oz,ow):
     """A wrapper assigning the x,y,z values
     to the pose. pose usually is type of
     mavros.setpoint.PoseStamped
     """
-    pose.pose.position.x = x
-    pose.pose.position.y = y
-    pose.pose.position.z = z
+    pose.pose.position.x = px
+    pose.pose.position.y = py
+    pose.pose.position.z = pz
 
-    pose.pose.orientation.x = 0.0
-    pose.pose.orientation.y = 0.0
-    pose.pose.orientation.z = 0.0
-    pose.pose.orientation.w = 0.0
+    pose.pose.orientation.x = ox
+    pose.pose.orientation.y = oy
+    pose.pose.orientation.z = oz
+    pose.pose.orientation.w = ow
 
     pose.header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",stamp=rospy.Time.now())
 
@@ -82,12 +77,14 @@ def local_position_cb(topic):
     """local position subscriber callback function
     """
     if (current_position.is_init is False):
-        current_position.x = topic.pose.position.x
-        current_position.y = topic.pose.position.y
-        current_position.z = topic.pose.position.z
-        print "Current position set to: %.2f %.2f %.2f"%(current_position.x,
-                                                         current_position.y,
-                                                         current_position.z)
+        current_position.px = topic.pose.position.x
+        current_position.py = topic.pose.position.y
+        current_position.pz = topic.pose.position.z
+        current_position.ox = topic.pose.orientation.x
+        current_position.oy = topic.pose.orientation.y
+        current_position.oz = topic.pose.orientation.z
+        current_position.ow = topic.pose.orientation.w
+        print "Current position set to: %.2f %.2f %.2f"%(current_position.px,current_position.py,current_position.pz)
         current_position.is_init=True
 
 def main():
@@ -100,13 +97,12 @@ def main():
     setpoint_local_pub = mavros.setpoint.get_pub_position_local(queue_size=10)
 
     # setup setpoint_msg
-    setpoint_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",
-                                                                             stamp=rospy.Time.now()),)
+    setpoint_msg = mavros.setpoint.PoseStamped(header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",stamp=rospy.Time.now()),)
 
     # setup local sub
     position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
-                                                            geometry_msgs.msg.PoseStamped,
-                                                            local_position_cb)
+                                          geometry_msgs.msg.PoseStamped,
+                                          local_position_cb)
 
     # setup task pub
     task_watchdog = TCS_util.Task_watchdog('TASK_SIMPLE_HOVER')
@@ -114,7 +110,7 @@ def main():
     # interprete the input position
     setpoint_arg = sys.argv[1].split(' ')
     delay_set=float(setpoint_arg[0])
-    print "The UAV will hover for %.2f seconds."% delay_set
+
     time_stamp_start=rospy.Time.now()
 
     # In this while loop, do the job.
@@ -122,12 +118,16 @@ def main():
         # setup setpoint poisiton and prepare to publish the position
         if(current_position.is_init is True):
             set_target(setpoint_msg,
-                           current_position.x,
-                       current_position.y,
-                       current_position.z)
+                       current_position.px,
+                       current_position.py,
+                       current_position.pz,
+                       current_position.ox,
+                       current_position.oy,
+                       current_position.oz,
+                       current_position.ow)
         # publish the current position letting UAV hover that the position
         setpoint_local_pub.publish(setpoint_msg)
-        # Publish the task status as RUNNING
+
         task_watchdog.report_running()
 
         rate.sleep()
