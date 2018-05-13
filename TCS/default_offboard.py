@@ -46,7 +46,7 @@ current_position = TCS_util.vector3()
 
 precision = 0.1
 
-takeoff_altitude = 7.5
+takeoff_altitude = 2.0
 
 emergency_sw = False
 
