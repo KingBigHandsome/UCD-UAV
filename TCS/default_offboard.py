@@ -121,28 +121,28 @@ def main():
     while(UAV_state.mode != "GUIDED"):
         set_mode(0,'GUIDED')
         #rospy.loginfo("Please set mode to S'GUIDED'!")
-        rate.sleep()
+        time.sleep(0.5)
 
     while(not UAV_state.armed):
         set_arming(True)
         #rospy.loginfo("Please arm!")
-        rate.sleep()
+        time.sleep(0.5)
     # Set the current GPS position as home_position, otherwise, it is aviailable to set it by customized lat/lng/alt
     while(not set_home(True,0.0,0.0,0.0)):
         #rospy.loginfo("Please set_home!")
-        rate.sleep()
+        time.sleep(0.5)
 
     # Takeoff to specified altitude
     while(not set_takeoff(0.0,0.0,0.0,0.0,takeoff_altitude)):
         #rospy.loginfo("Please set_takeoff!")
-        rate.sleep()
+        time.sleep(0.5)
 
     while(not is_reached()):
         #rospy.loginfo("Waiting for takeoff to be done...")
         rate.sleep()
 
     #Delay for 5 seconds after takeoff, and then, start to execute tasks.
-    time.sleep(10)
+    time.sleep(5)
 
     last_request = rospy.Time.now()
 
