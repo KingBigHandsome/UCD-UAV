@@ -130,19 +130,19 @@ def main():
     # Set the current GPS position as home_position, otherwise, it is aviailable to set it by customized lat/lng/alt
     while(not set_home(True,0.0,0.0,0.0)):
         #rospy.loginfo("Please set_home!")
-        time.sleep(0.5)
+        time.sleep(0.25)
 
     # Takeoff to specified altitude
     while(not set_takeoff(0.0,0.0,0.0,0.0,takeoff_altitude)):
         #rospy.loginfo("Please set_takeoff!")
-        time.sleep(0.5)
+        time.sleep(0.25)
 
     while(not is_reached()):
         #rospy.loginfo("Waiting for takeoff to be done...")
         rate.sleep()
 
     #Delay for 5 seconds after takeoff, and then, start to execute tasks.
-    time.sleep(5)
+    time.sleep(2)
 
     last_request = rospy.Time.now()
 
