@@ -136,7 +136,8 @@ def main():
     velocity_y = 0.0
     velocity_z = 0.0
     target_velocity = 2.0 # customized flight speed
-    buffer_distance = 5.0 # the distance that the drone will slown down when it approaches the target position
+    buffer_distance = 5.0 # the horizontal distance that the drone will slown down when it approaches the target position
+    buffer_altitude = 1.0 # the Vertical   distance that the drone will slown down when it approaches the target position
     # setup setpoint_raw_local_pub
     setpoint_raw_local_pub = rospy.Publisher(mavros.get_topic('setpoint_raw', 'local'),
                                              mavros_msgs.msg.PositionTarget,
@@ -225,7 +226,13 @@ def main():
 
             setpoint_raw_local.vx = velocity_x
             setpoint_raw_local.vy = velocity_y
-            setpoint_raw_local.vz = 0.5 # customized ascending speed
+            # customized ascending speed
+            if(p <= -buffer_altitude):
+                setpoint_raw_local.vz = 0.5
+            elif(abs(p) < buffer_altitude):
+                setpoint_raw_local.vz = -0.5*p
+            else:
+                setpoint_raw_local.vz = -0.5
             setpoint_raw_local.yaw = theta_yaw
 
             update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
@@ -430,7 +437,13 @@ def main():
 
             setpoint_raw_local.vx = velocity_x
             setpoint_raw_local.vy = velocity_y
-            setpoint_raw_local.vz = -0.5 #customized descending speed
+            # customized ascending speed
+            if(p >= buffer_altitude):
+                setpoint_raw_local.vz = -0.5
+            elif(abs(p) < buffer_altitude):
+                setpoint_raw_local.vz = -0.5*p
+            else:
+                setpoint_raw_local.vz = 0.5
             setpoint_raw_local.yaw = theta_yaw
 
             update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
