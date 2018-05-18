@@ -61,7 +61,7 @@ setpoint_position = TCS_util.vector3()
 setpoint_raw_local  = TCS_util.vector4()
 
 # precision setup. normally set it to 0.5m
-precision = 0.5
+precision = 0.1
 pi = 3.1415926
 frame_id='local_setpoint_raw'
 
