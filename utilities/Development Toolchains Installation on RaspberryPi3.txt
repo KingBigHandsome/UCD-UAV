@@ -154,13 +154,19 @@ git clone https://github.com/PX4/Firmware.git
 
 cd ~/catkin_ws/src
 
-git clone https://github.com/ucdart/UCD-UAV.git
+git clone git@github.com:KingBigHandsome/UCD-UAV.git
 
-cd UCD_UAV/
+cd UCD-UAV/
 
 git fetch
 
-git checkout 2017fix
+git branch
+
+git status 
+
+git checkout -b Ardupilot
+
+git pull origin Ardupilot
 
 cd ~/catkin_ws
 
