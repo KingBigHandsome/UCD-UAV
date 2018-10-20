@@ -143,6 +143,7 @@ sudo ./install_geographiclib_datasets.sh
 
 cd -
 
+
 # 10. Download the Firmware of PX4
 sudo mkdir -p ~/src
 
@@ -168,9 +169,12 @@ git checkout -b Ardupilot
 
 git pull origin Ardupilot
 
+
 cd ~/catkin_ws
 
 catkin_make_isolated -j1
+
+
 
 # 12. Install gedit on Ubuntu-Mate
 
