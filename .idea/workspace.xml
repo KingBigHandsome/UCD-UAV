@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="15a2be05-1e45-4e42-8f53-23848d2c3bcb" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/TCS/TASK_LOCAL_GOTO.py" beforeDir="false" afterPath="$PROJECT_DIR$/TCS/TASK_LOCAL_GOTO.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TCS/TASK_SIMPLE_HOVER.py" beforeDir="false" afterPath="$PROJECT_DIR$/TCS/TASK_SIMPLE_HOVER.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TCS/TCS_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/TCS/TCS_util.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TCS/default_offboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/TCS/default_offboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TCS/state_check.py" beforeDir="false" afterPath="$PROJECT_DIR$/TCS/state_check.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TCS/task_list.log" beforeDir="false" afterPath="$PROJECT_DIR$/TCS/task_list.log" afterDir="false" />
+    </list>
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FUSProjectUsageTrigger">
+    <session id="401737494">
+      <usages-collector id="statistics.lifecycle.project">
+        <counts>
+          <entry key="project.closed" value="2" />
+          <entry key="project.open.time.0" value="2" />
+          <entry key="project.open.time.2" value="1" />
+          <entry key="project.opened" value="3" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.open">
+        <counts>
+          <entry key="py" value="6" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.open">
+        <counts>
+          <entry key="Python" value="6" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.extensions.edit">
+        <counts>
+          <entry key="py" value="449" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.file.types.edit">
+        <counts>
+          <entry key="Python" value="449" />
+        </counts>
+      </usages-collector>
+    </session>
+  </component>
+  <component name="FileEditorManager">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="525">
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/TCS/default_offboard.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="1134">
+              <caret line="102" column="37" selection-start-line="102" selection-start-column="28" selection-end-line="102" selection-end-column="37" />
+              <folding>
+                <element signature="e#946#957#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/TCS/TASK_LOCAL_GOTO.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="2546">
+              <caret line="544" lean-forward="true" selection-start-line="544" selection-end-line="544" />
+              <folding>
+                <element signature="e#1305#1316#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>emergency_sw</find>
+      <find>SP</find>
+      <find>Task_mgr</find>
+      <find>PositionTarget</find>
+      <find>command</find>
+      <find>setpoint</find>
+      <find>_state_callback</find>
+      <find>rc_in_callback</find>
+      <find>setpoint_raw_local_pub</find>
+      <find>set_mode</find>
+      <find>state_sub</find>
+      <find>rc_in</find>
+      <find>position_local_sub</find>
+      <find>frame_id</find>
+      <find>setpoint_msg</find>
+      <find>theta_yaw</find>
+      <find>quaternion_from_euler</find>
+    </findStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/TCS/rosrealsense.py" />
+        <option value="$PROJECT_DIR$/TCS/TASK_SIMPLE_HOVER.py" />
+        <option value="$PROJECT_DIR$/TCS/state_check.py" />
+        <option value="$PROJECT_DIR$/TCS/TCS_util.py" />
+        <option value="$PROJECT_DIR$/TCS/default_offboard.py" />
+        <option value="$PROJECT_DIR$/TCS/TASK_LOCAL_GOTO.py" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="1354" />
+    <option name="y" value="28" />
+    <option name="width" value="2487" />
+    <option name="height" value="2129" />
+  </component>
+  <component name="ProjectView">
+    <navigator proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="UCD-UAV" type="b2602c69:ProjectViewProjectNode" />
+              <item name="UCD-UAV" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="UCD-UAV" type="b2602c69:ProjectViewProjectNode" />
+              <item name="UCD-UAV" type="462c0819:PsiDirectoryNode" />
+              <item name="TCS" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+      <pane id="Scope" />
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="last_opened_file_path" value="$USER_HOME$/Desktop/obstacle-avoidance/realsense" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="ReadonlyStatusHandler">
+    <option name="SHOW_DIALOG" value="false" />
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager">
+    <configuration name="rosrealsense" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="UCD-UAV" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/TCS" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/TCS/rosrealsense.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.rosrealsense" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="15a2be05-1e45-4e42-8f53-23848d2c3bcb" name="Default Changelist" comment="" />
+      <created>1543371597596</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1543371597596</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="1354" y="28" width="2487" height="2129" extended-state="0" />
+    <editor active="true" />
+    <layout>
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.49496982" visible="true" weight="0.17803185" />
+      <window_info id="Structure" order="1" sideWeight="0.50503016" side_tool="true" weight="0.24515393" />
+      <window_info id="Favorites" order="2" sideWeight="0.5005562" side_tool="true" weight="0.24580537" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.32925472" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.25634387" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" weight="0.32925472" />
+      <window_info anchor="bottom" id="Python Console" order="7" weight="0.32814237" />
+      <window_info anchor="bottom" id="Version Control" order="8" />
+      <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" weight="0.32814237" />
+      <window_info anchor="bottom" id="Terminal" order="10" weight="0.18428184" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+    </layout>
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/TCS/rosrealsense.py" />
+    <entry file="file://$PROJECT_DIR$/TCS/TASK_SIMPLE_HOVER.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2303">
+          <caret line="100" lean-forward="true" selection-start-line="100" selection-end-line="100" />
+          <folding>
+            <element signature="e#1202#1213#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/TCS/TCS_util.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="324">
+          <caret line="39" column="20" lean-forward="true" selection-start-line="39" selection-start-column="20" selection-end-line="39" selection-end-column="20" />
+          <folding>
+            <element signature="e#947#959#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/TCS/state_check.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="594">
+          <caret line="22" column="29" lean-forward="true" selection-start-line="22" selection-start-column="29" selection-end-line="22" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/TCS/default_offboard.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1134">
+          <caret line="102" column="37" selection-start-line="102" selection-start-column="28" selection-end-line="102" selection-end-column="37" />
+          <folding>
+            <element signature="e#946#957#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/TCS/TASK_LOCAL_GOTO.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2546">
+          <caret line="544" lean-forward="true" selection-start-line="544" selection-end-line="544" />
+          <folding>
+            <element signature="e#1305#1316#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>

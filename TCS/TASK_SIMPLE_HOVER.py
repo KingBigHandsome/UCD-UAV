@@ -55,7 +55,8 @@ current_position = TCS_util.vector7()
 # setpoint position
 setpoint_position = TCS_util.vector7()
 # setup frame_id
-frame_id='SIMPLE_HOVER'
+frame_id = 'SIMPLE_HOVER'
+
 
 def set_target(pose, px, py, pz,ox,oy,oz,ow):
     """A wrapper assigning the x,y,z values
@@ -73,6 +74,7 @@ def set_target(pose, px, py, pz,ox,oy,oz,ow):
 
     pose.header=mavros.setpoint.Header(frame_id="SIMPLE_HOVER",stamp=rospy.Time.now())
 
+
 def local_position_cb(topic):
     """local position subscriber callback function
     """
@@ -84,8 +86,9 @@ def local_position_cb(topic):
         current_position.oy = topic.pose.orientation.y
         current_position.oz = topic.pose.orientation.z
         current_position.ow = topic.pose.orientation.w
-        print "Current position set to: %.2f %.2f %.2f"%(current_position.px,current_position.py,current_position.pz)
-        current_position.is_init=True
+        print "Current position set to: %.2f %.2f %.2f" % (current_position.px,current_position.py,current_position.pz)
+        current_position.is_init = True
+
 
 def main():
     # print "TASK: "+str(sys.argv)
@@ -109,7 +112,7 @@ def main():
 
     # interprete the input position
     setpoint_arg = sys.argv[1].split(' ')
-    delay_set=float(setpoint_arg[0])
+    delay_set = float(setpoint_arg[0])
 
     time_stamp_start=rospy.Time.now()
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''
+"""
 Copyright (c) 2016-2017 EEC193 Senior Design at UCDavis
 
 This program is free software: you can redistribute it and/or modify it under the terms of the Lesser GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or(at your option) any later version.
@@ -7,36 +7,36 @@ This program is free software: you can redistribute it and/or modify it under th
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-'''
-
+"""
 # import ROS libraries
 import time
 import rospy
 import mavros
+import nav_msgs.msg
+import time
+from datetime import datetime
+import thread
+import math
+import subprocess
+
 from mavros.utils import *
-from mavros import setpoint as SP
 import mavros.setpoint
 import mavros.command
 import mavros_msgs.msg
 import mavros_msgs.srv
-import geometry_msgs
-import nav_msgs.msg
-import time
-from datetime import datetime
+import geometry_msgs.msg
 from UAV_Task import *
 import TCS_util
-
-import thread
-import math
 import sys
 import signal
-import subprocess
 
 
 # signal.SIGINT stop the thread
 def signal_handler(signal, frame):
         print('You pressed Ctrl+C!')
         sys.exit(0)
+
+
 signal.signal(signal.SIGINT, signal_handler)
 
 # make an instance of the State.msg
@@ -50,25 +50,29 @@ takeoff_altitude = 2.0
 
 emergency_sw = False
 
-# Definitions of various callback functions
-def _state_callback(topic):
+
+def state_callback(topic):
+    """State subscriber callback function Topic: /mavros/state
+    """
     UAV_state.armed = topic.armed
     UAV_state.connected = topic.connected
     UAV_state.mode = topic.mode
     UAV_state.guided = topic.guided
 
-def _rc_in_callback(topic):
+
+def rc_in_callback(topic):
     """RCIN subscriber callback function Topic: /mavros/rc/in
     """
     global emergency_sw
     rc_in_channels = topic.channels
 
-    if (rc_in_channels[5] <= 1750):
+    if rc_in_channels[5] <= 1750:
         emergency_sw = True
-        #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
+        # rospy.loginfo("emergency_sw is {}".format(emergency_sw))
     else:
         emergency_sw = False
-        #rospy.loginfo("emergency_sw is {}".format(emergency_sw))
+        # rospy.loginfo("emergency_sw is {}".format(emergency_sw))
+
 
 def local_position_cb(topic):
     """local position subscriber callback function Topic: /mavros/local_position/pose
@@ -78,10 +82,11 @@ def local_position_cb(topic):
     current_position.y = topic.pose.position.y
     current_position.z = topic.pose.position.z
 
+
 def is_reached():
     """Check if the UAV reached the takeoff altitude
     """
-    if (abs(current_position.z-takeoff_altitude) < precision):
+    if abs(current_position.z-takeoff_altitude) < precision:
         print "Takeoff Finished!"
         return True
     else:
@@ -95,9 +100,9 @@ def main():
     mavros.set_namespace('/mavros')
 
     # setup subscriber
-    state_sub = rospy.Subscriber(mavros.get_topic('state'),mavros_msgs.msg.State, _state_callback)
-    rc_in     = rospy.Subscriber(mavros.get_topic('rc','in'),mavros_msgs.msg.RCIn, _rc_in_callback)
-    position_local_sub = rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
+    rospy.Subscriber(mavros.get_topic('state'), mavros_msgs.msg.State, state_callback)
+    rospy.Subscriber(mavros.get_topic('rc', 'in'), mavros_msgs.msg.RCIn, rc_in_callback)
+    rospy.Subscriber(mavros.get_topic('local_position', 'pose'),
                                           geometry_msgs.msg.PoseStamped,
                                           local_position_cb)
     # setup services
@@ -110,70 +115,71 @@ def main():
     Task_mgr = TCS_util.Task_manager('task_list.log')
 
     # start setpoint_update instance
-    # In Firmware PX4, this function defined in Class update_setpoint is necessary to keep the flight mode in 'OFFBOARD',
-    # But, it seems like unnecessary in Ardupilot.
+    # In PX4, this function defined in Class update_setpoint is essential to keep in the flight mode 'OFFBOARD',
+    # However, it is unnecessary in Ardupilot.
     setpoint_keeper = TCS_util.update_setpoint(rospy)
 
-    while(not UAV_state.connected):
-        #rospy.loginfo("Waiting for vaild connection!")
+    while not UAV_state.connected:
+        # rospy.loginfo("Waiting for vaild connection!")
         rate.sleep()
 
-    while(UAV_state.mode != "GUIDED"):
-        set_mode(0,'GUIDED')
-        #rospy.loginfo("Please set mode to S'GUIDED'!")
+    while UAV_state.mode != "GUIDED":
+        set_mode(0, 'GUIDED')
+        # rospy.loginfo("Please set mode to S'GUIDED'!")
         time.sleep(0.5)
 
-    while(not UAV_state.armed):
+    while not UAV_state.armed:
         set_arming(True)
-        #rospy.loginfo("Please arm!")
+        # rospy.loginfo("Please arm!")
         time.sleep(0.5)
-    # Set the current GPS position as home_position, otherwise, it is aviailable to set it by customized lat/lng/alt
-    while(not set_home(True,0.0,0.0,0.0)):
-        #rospy.loginfo("Please set_home!")
+        
+    # Set the current GPS position as home_position, otherwise, it is available to set it by customized lat/lng/alt
+    while not set_home(True, 0.0, 0.0, 0.0):
+        # rospy.loginfo("Please set_home!")
         time.sleep(0.25)
 
     # Takeoff to specified altitude
-    while(not set_takeoff(0.0,0.0,0.0,0.0,takeoff_altitude)):
-        #rospy.loginfo("Please set_takeoff!")
+    while not set_takeoff(0.0, 0.0, 0.0, 0.0, takeoff_altitude):
+        # rospy.loginfo("Please set_takeoff!")
         time.sleep(0.25)
 
-    while(not is_reached()):
-        #rospy.loginfo("Waiting for takeoff to be done...")
+    while not is_reached():
+        # rospy.loginfo("Waiting for takeoff to be done...")
         rate.sleep()
 
-    #Delay for 5 seconds after takeoff, and then, start to execute tasks.
+    # Delay for 2 seconds after takeoff, and then, start to execute tasks.
     time.sleep(2)
 
     last_request = rospy.Time.now()
 
     # enter the main loop
-    while(True):
+    while True:
 
-        if(emergency_sw):
+        if emergency_sw:
 
-            if( UAV_state.mode == "GUIDED" and UAV_state.armed is True):
+            if UAV_state.mode == "GUIDED" and UAV_state.armed is True:
+                # setpoint_keeper.update()
 
-                 #setpoint_keeper.update()
-
-                if(Task_mgr.task_finished()):
-                # If the current task has been done
+                if Task_mgr.task_finished():
+                    # If the current task has been done
                     rospy.loginfo("Current task is finished!")
 
-                    if (not Task_mgr.alldone()):
+                    if not Task_mgr.alldone():
                         Task_mgr.nexttask()
                     else:
                         # Current task has been done and no task left
                         rospy.loginfo("All tasks have been done! Flight mode changed to 'RTL'")
-                        while (UAV_state.mode != "RTL"):
-                            if((rospy.Time.now() - last_request) > rospy.Duration(2.0)):
-                                set_mode(0,'RTL')
+                        while UAV_state.mode != "RTL":
+                            if (rospy.Time.now() - last_request) > rospy.Duration(2.0):
+                                set_mode(0, 'RTL')
                                 last_request = rospy.Time.now()
                             rate.sleep()
                         return 0
                 rate.sleep()
         else:
             return 0
-    #return 0
+    # return 0
+
 
 if __name__ == '__main__':
     main()

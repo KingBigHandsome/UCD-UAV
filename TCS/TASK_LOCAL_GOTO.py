@@ -53,17 +53,20 @@ import TCS_util
 # Declare some global variables.
 # current position Position and Orientation
 current_position = TCS_util.vector7()
-# setpoint position
+
 destination = TCS_util.vector3()
 
 setpoint_position = TCS_util.vector3()
 
-setpoint_raw_local  = TCS_util.vector4()
+setpoint_raw_local = TCS_util.vector4()
 
 # precision setup. normally set it to 0.5m
 precision = 0.1
+
 pi = 3.1415926
-frame_id='local_setpoint_raw'
+
+frame_id = 'local_setpoint_raw'
+
 
 def set_target(pose, x, y, z):
     """A wrapper assigning the x,y,z values
@@ -74,22 +77,23 @@ def set_target(pose, x, y, z):
     pose.y = y
     pose.z = z
 
+
 def update_msg(msg,vx,vy,vz,yaw):
     """A wrapper assigning the x,y,z values
     to the pose. pose usually is type of
     mavros_msgs/PositionTarget.msg
     """
     msg.header = mavros.setpoint.Header(frame_id=msg.header.frame_id,stamp=rospy.Time.now())
-    msg.coordinate_frame = 1 # FRAME_LOCAL_NED = 1 Nort-Pitch East-Roll Down
-    msg.type_mask = 967      # IGNORE_PX/PY/PZ IGNORE_AFX/AFY/AFZ FORCE 1+2+4+64+128+256+512
-    msg.position.x = 0.0     # In this case,position.x/y/z were invalid by setting 'type_mask'
+    msg.coordinate_frame = 1  # FRAME_LOCAL_NED = 1 Nort-Pitch East-Roll Down
+    msg.type_mask = 967       # IGNORE_PX/PY/PZ IGNORE_AFX/AFY/AFZ FORCE 1+2+4+64+128+256+512
+    msg.position.x = 0.0      # In this case,position.x/y/z were invalid by setting 'type_mask'
     msg.position.y = 0.0
     msg.position.z = 0.0
     msg.velocity.x = vx
     msg.velocity.y = vy
     msg.velocity.z = vz
-    msg.yaw = yaw            # when yaw is 0, the drone towards to North
-                             # the drone rotates clockwisely as the value increases.
+    msg.yaw = yaw  # the drone faces towards North when yaw is 0 and rotates clockwisely as the value increases.
+
 
 def local_position_cb(topic):
     """local position subscriber callback function Topic: /mavros/local_position/pose
@@ -102,6 +106,8 @@ def local_position_cb(topic):
     current_position.oy = topic.pose.orientation.y
     current_position.oz = topic.pose.orientation.z
     current_position.ow = topic.pose.orientation.w
+
+
 def is_reached(setpoint):
     """Check if the UAV reached the destination
     """
@@ -114,6 +120,7 @@ def is_reached(setpoint):
     else:
         return False
 
+
 def is_overtime(timestamp, overtime):
     """Check if the UAV reached the destination with in the set time
        if not, it will set mode to 'RTL'
@@ -123,6 +130,7 @@ def is_overtime(timestamp, overtime):
         return True
     else:
         return False
+
 
 def main():
 
@@ -135,15 +143,15 @@ def main():
     velocity_x = 0.0
     velocity_y = 0.0
     velocity_z = 0.0
-    target_velocity = 2.0 # customized flight speed
-    buffer_distance = 5.0 # the horizontal distance that the drone will slown down when it approaches the target position
-    buffer_altitude = 1.0 # the Vertical   distance that the drone will slown down when it approaches the target position
+    target_velocity = 2.0  # customized flight speed
+    buffer_distance = 5.0  # horizontal distance that the drone will slown down when it approaches the target position
+    buffer_altitude = 1.0  # vertical distance that the drone will slown down when it approaches the target position
     # setup setpoint_raw_local_pub
     setpoint_raw_local_pub = rospy.Publisher(mavros.get_topic('setpoint_raw', 'local'),
                                              mavros_msgs.msg.PositionTarget,
                                              queue_size=10)
 
-    setpoint_msg = mavros.setpoint.PositionTarget(header=mavros.setpoint.Header(frame_id="local_setpoint_raw",
+    setpoint_msg = mavros_msgs.msg.PositionTarget(header=mavros.setpoint.Header(frame_id="local_setpoint_raw",
                                                                                 stamp=rospy.Time.now()),)
     # setup service
     set_mode    = rospy.ServiceProxy('/mavros/set_mode', mavros_msgs.srv.SetMode)
@@ -163,9 +171,9 @@ def main():
     # str(sys.argv) : The arguments are ['name of the script','arg1','arg2'...]
     # spilt into list use " "e.g.setpoint[0]=5 setpoint[1]=0 setpoint[2]=5 setpoint[3]=20
     setpoint_arg = sys.argv[1].split(' ')
-    destination.x=float(setpoint_arg[0])
-    destination.y=float(setpoint_arg[1])
-    destination.z=float(setpoint_arg[2])
+    destination.x = float(setpoint_arg[0])
+    destination.y = float(setpoint_arg[1])
+    destination.z = float(setpoint_arg[2])
     over_time = float(setpoint_arg[3])
 
     pre_flight = 'neutral'
@@ -176,8 +184,9 @@ def main():
         continue
 
     # When the current_position is available, calculate the current yaw value
-    quaternion = (current_position.ox,current_position.oy,current_position.oz,current_position.ow)
-    euler = euler_from_quaternion(quaternion,axes="sxyz")
+    quaternion = (current_position.ox, current_position.oy, current_position.oz, current_position.ow)
+    euler = euler_from_quaternion(quaternion, axes="sxyz")
+    
     theta_yaw = euler[2] - pi/2.0
 
     # Firstly ascending to the target altitude and then flight to the destination
@@ -233,7 +242,7 @@ def main():
                 setpoint_raw_local.vz = -0.5*p
             else:
                 setpoint_raw_local.vz = -0.5
-            setpoint_raw_local.yaw = theta_yaw
+            setpoint_raw_local.yaw = theta_yaw + pi/2
 
             update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
 
@@ -306,7 +315,7 @@ def main():
             setpoint_raw_local.vx = velocity_x
             setpoint_raw_local.vy = velocity_y
             setpoint_raw_local.vz = velocity_z
-            setpoint_raw_local.yaw = theta_yaw
+            setpoint_raw_local.yaw = theta_yaw + pi/2.0
 
             update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
 
@@ -322,7 +331,7 @@ def main():
     # Firstly flight to the destination holding the current altitude and the descend to the target altitude
     elif (current_position.pz - destination.z >2):
         pre_flight = 'descending'
-        # flight to the target first
+        # flight to the target firstly
         set_target(setpoint_position,destination.x,destination.y,current_position.pz)
 
         while(not is_reached(setpoint_position)):
@@ -374,7 +383,7 @@ def main():
             setpoint_raw_local.vx = velocity_x
             setpoint_raw_local.vy = velocity_y
             setpoint_raw_local.vz = velocity_z
-            setpoint_raw_local.yaw = theta_yaw
+            setpoint_raw_local.yaw = theta_yaw + pi/2.0
 
 
             update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
@@ -444,7 +453,7 @@ def main():
                 setpoint_raw_local.vz = -0.5*p
             else:
                 setpoint_raw_local.vz = 0.5
-            setpoint_raw_local.yaw = theta_yaw
+            setpoint_raw_local.yaw = theta_yaw + pi/2
 
             update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
 
@@ -511,7 +520,7 @@ def main():
             setpoint_raw_local.vx = velocity_x
             setpoint_raw_local.vy = velocity_y
             setpoint_raw_local.vz = velocity_z
-            setpoint_raw_local.yaw = theta_yaw
+            setpoint_raw_local.yaw = theta_yaw + pi/2.0
 
             update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
 
@@ -528,16 +537,17 @@ def main():
     setpoint_raw_local.vx = 0.0
     setpoint_raw_local.vy = 0.0
     setpoint_raw_local.vz = 0.0
-    setpoint_raw_local.yaw = theta_yaw
+    setpoint_raw_local.yaw = theta_yaw + pi/2.0
 
     update_msg(setpoint_msg,setpoint_raw_local.vx,setpoint_raw_local.vy,setpoint_raw_local.vz,setpoint_raw_local.yaw)
 
     setpoint_raw_local_pub.publish(setpoint_msg)
 
-    #Publish the task status as FINISH
+    # Publish the task status as FINISH
     task_watchdog.report_finish()
 
     return 0
+
 
 if __name__ == '__main__':
     main()
